@@ -970,9 +970,9 @@ export default {
     // Map Express routes to their HTML file equivalents in the public dir.
     // We'll put the HTML files in public/ so the asset binding can serve them.
     const viewRoutes = {
-      '/': '/index.html',
-      '/resources': '/resources.html',
-      '/about': '/about.html',
+      '/': '/',
+      '/resources': '/resources',
+      '/about': '/about',
     };
 
     // topic/:id — any path matching /topic/<something>
@@ -982,7 +982,7 @@ export default {
     if (viewRoutes[path] !== undefined) {
       assetPath = viewRoutes[path];
     } else if (topicPageMatch) {
-      assetPath = '/topic.html';
+      assetPath = '/topic';
     } else if (path === '/sop') {
       assetPath = '/Cyber_Unit_SOP.pdf';
     }
@@ -990,9 +990,8 @@ export default {
     if (assetPath !== null) {
       // Fetch from the asset binding using the mapped path
       const assetUrl = new URL(assetPath, url.origin);
-      const assetRequest = new Request(assetUrl.toString(), request);
       try {
-        const assetResponse = await env.ASSETS.fetch(assetRequest);
+        const assetResponse = await env.ASSETS.fetch(assetUrl.toString());
         if (assetResponse.ok) {
           const headers = addSecurityHeaders(new Headers(assetResponse.headers));
           return new Response(assetResponse.body, {
