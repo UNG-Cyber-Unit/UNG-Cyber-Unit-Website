@@ -161,7 +161,7 @@ async function renderTopicPage() {
 
   } catch (err) {
     document.getElementById('topicContent').innerHTML =
-      `<p style="color:var(--danger);font-family:'Share Tech Mono',monospace;">Error loading topic: ${err.message}</p>`;
+      `<p style="color:var(--danger);font-family:'Share Tech Mono',monospace;">Error loading topic: ${escHtml(err.message)}</p>`;
   }
 }
 
