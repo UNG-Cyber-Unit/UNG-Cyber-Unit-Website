@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ung-cyber-unit-website",
+  "compatibility_date": "2026-06-10",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "views"
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
+}
