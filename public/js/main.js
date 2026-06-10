@@ -5,6 +5,10 @@
 
 'use strict';
 
+// ─── Auth State ───────────────────────────────────────────────────────────────
+
+let currentUser = null; // { username } or null
+
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
 function getTopicIdFromURL() {
@@ -77,8 +81,15 @@ async function renderTopicGrid() {
   if (!grid) return;
 
   try {
-    const res = await fetch('/api/topics');
-    const topics = await res.json();
+    const [topicsRes, progressRes] = await Promise.all([
+      fetch('/api/topics'),
+      fetch('/api/progress'),
+    ]);
+    const topics = await topicsRes.json();
+    const { results: progressList } = progressRes.ok ? await progressRes.json() : { results: [] };
+
+    const progressMap = {};
+    for (const r of (progressList ?? [])) progressMap[r.topic_id] = r;
 
     // Update dynamic stats bar
     const statTopics  = document.getElementById('statTopics');
@@ -86,17 +97,25 @@ async function renderTopicGrid() {
     if (statTopics)  statTopics.textContent  = topics.length;
     if (statQuizzes) statQuizzes.textContent = topics.length;
 
-    grid.innerHTML = topics.map(t => `
-      <article class="card" aria-label="${t.title}">
-        <div class="card-icon" aria-hidden="true">${t.icon}</div>
-        <h3 class="card-title">${t.title}</h3>
-        <p class="card-desc">${t.shortDesc}</p>
-        <div class="card-footer">
-          <span class="badge badge-beginner">${t.difficulty}</span>
-          <a href="/topic/${t.id}" class="btn btn-sm" aria-label="Explore ${t.title}">Explore →</a>
-        </div>
-      </article>
-    `).join('');
+    grid.innerHTML = topics.map(t => {
+      const prog = progressMap[t.id];
+      const progressBadge = prog
+        ? `<div class="card-progress" aria-label="Quiz score: ${prog.score} of ${prog.total}">
+             ${prog.score}/${prog.total}${prog.score === prog.total ? ' <span class="progress-star" aria-hidden="true">★</span>' : ''}
+           </div>`
+        : '';
+      return `
+        <article class="card${prog ? ' card-completed' : ''}" aria-label="${escHtml(t.title)}">
+          ${progressBadge}
+          <div class="card-icon" aria-hidden="true">${t.icon}</div>
+          <h3 class="card-title">${escHtml(t.title)}</h3>
+          <p class="card-desc">${escHtml(t.shortDesc)}</p>
+          <div class="card-footer">
+            <span class="badge badge-beginner">${escHtml(t.difficulty)}</span>
+            <a href="/topic/${t.id}" class="btn btn-sm" aria-label="Explore ${escHtml(t.title)}">Explore →</a>
+          </div>
+        </article>`;
+    }).join('');
   } catch (err) {
     grid.innerHTML = '<p style="color:var(--danger);font-family:\'Share Tech Mono\',monospace;">Failed to load topics.</p>';
   }
@@ -108,9 +127,10 @@ async function renderTopicPage() {
   const id = getTopicIdFromURL();
 
   try {
-    const [topicRes, allRes] = await Promise.all([
+    const [topicRes, allRes, progressRes] = await Promise.all([
       fetch(`/api/topic/${id}`),
       fetch('/api/topics'),
+      fetch('/api/progress'),
     ]);
 
     if (!topicRes.ok) {
@@ -121,6 +141,8 @@ async function renderTopicPage() {
 
     const topic  = await topicRes.json();
     const topics = await allRes.json();
+    const { results: progressList } = progressRes.ok ? await progressRes.json() : { results: [] };
+    const prevResult = (progressList ?? []).find(r => r.topic_id === id);
 
     // Update <title>
     document.title = `CyberUnit @ UNG — ${topic.title}`;
@@ -143,7 +165,24 @@ async function renderTopicPage() {
     document.getElementById('topicContent').innerHTML = renderContent(topic);
 
     // Quiz
-    renderQuiz(topic.quiz);
+    renderQuiz(topic.quiz, topic.id);
+
+    // Previous best score banner
+    if (prevResult) {
+      const quizSection = document.getElementById('quizSection');
+      const heading = quizSection && quizSection.querySelector('h2');
+      if (heading) {
+        const banner = document.createElement('div');
+        banner.className = 'prev-score-banner';
+        const perfect = prevResult.score === prevResult.total;
+        banner.innerHTML = `
+          <span class="prev-score-label">Your best:</span>
+          <span class="prev-score-value">${prevResult.score} / ${prevResult.total}</span>
+          ${perfect ? '<span class="prev-score-perfect" aria-hidden="true">★ Perfect!</span>' : ''}
+        `;
+        quizSection.insertBefore(banner, heading);
+      }
+    }
 
     // Previous / Next navigation
     renderTopicNav(topics, id);
@@ -858,7 +897,7 @@ function initScrollSpy() {
 
 // ─── Quiz System ──────────────────────────────────────────────────────────────
 
-function renderQuiz(questions) {
+function renderQuiz(questions, topicId = null) {
   const container = document.getElementById('quizContainer');
   if (!container || !questions) return;
 
@@ -933,11 +972,13 @@ function renderQuiz(questions) {
     scoreEl.style.display = 'block';
     scoreEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
+    if (topicId) saveProgress(topicId, correct, total);
+
     tryAgain.addEventListener('click', () => {
       scoreEl.style.display = 'none';
       answered = 0;
       correct  = 0;
-      renderQuiz(questions);
+      renderQuiz(questions, topicId);
     }, { once: true });
   }
 }
@@ -1161,11 +1202,198 @@ function escHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+async function initAuth() {
+  injectAuthModal();
+  try {
+    const res = await fetch('/api/auth/me');
+    if (res.ok) currentUser = await res.json();
+  } catch { /* stay logged out */ }
+  updateAuthNav();
+}
+
+function updateAuthNav() {
+  const navItem = document.getElementById('authNavItem');
+  if (!navItem) return;
+  if (currentUser) {
+    navItem.innerHTML = `
+      <span class="navbar-username">${escHtml(currentUser.username)}</span>
+      <button class="btn btn-sm" id="logoutBtn">Sign Out</button>`;
+    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+  } else {
+    navItem.innerHTML = `<button class="btn btn-sm" id="openAuthBtn">Sign In</button>`;
+    document.getElementById('openAuthBtn').addEventListener('click', () => openAuthModal('login'));
+  }
+}
+
+async function handleLogout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  currentUser = null;
+  updateAuthNav();
+  window.location.reload();
+}
+
+function openAuthModal(tab) {
+  const modal = document.getElementById('authModal');
+  if (!modal) return;
+  modal.hidden = false;
+  setAuthTab(tab ?? 'login');
+  const focusId = tab === 'register' ? 'regUsername' : 'loginUsername';
+  document.getElementById(focusId)?.focus();
+}
+
+function closeAuthModal() {
+  const modal = document.getElementById('authModal');
+  if (!modal) return;
+  modal.hidden = true;
+  ['loginError', 'registerError'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.hidden = true; el.textContent = ''; }
+  });
+}
+
+function setAuthTab(tab) {
+  document.querySelectorAll('.modal-tab').forEach(t => {
+    const active = t.dataset.tab === tab;
+    t.classList.toggle('active', active);
+    t.setAttribute('aria-selected', String(active));
+  });
+  const loginForm    = document.getElementById('loginForm');
+  const registerForm = document.getElementById('registerForm');
+  if (loginForm)    loginForm.hidden    = (tab !== 'login');
+  if (registerForm) registerForm.hidden = (tab !== 'register');
+}
+
+function injectAuthModal() {
+  const modal = document.createElement('div');
+  modal.id = 'authModal';
+  modal.className = 'modal-overlay';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-label', 'Sign in or create account');
+  modal.hidden = true;
+  modal.innerHTML = `
+    <div class="modal">
+      <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+      <div class="modal-tabs" role="tablist" aria-label="Authentication mode">
+        <button class="modal-tab active" role="tab" aria-selected="true" data-tab="login">Sign In</button>
+        <button class="modal-tab" role="tab" aria-selected="false" data-tab="register">Register</button>
+      </div>
+      <form id="loginForm" class="modal-form" novalidate>
+        <div class="form-group">
+          <label for="loginUsername">Username</label>
+          <input type="text" id="loginUsername" autocomplete="username" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" autocomplete="current-password" required>
+        </div>
+        <p class="form-error" id="loginError" aria-live="polite" hidden></p>
+        <button type="submit" class="btn" style="width:100%;margin-top:0.25rem">Sign In</button>
+      </form>
+      <form id="registerForm" class="modal-form" novalidate hidden>
+        <div class="form-group">
+          <label for="regUsername">Username <span class="form-hint">3–20 chars, letters/numbers/_</span></label>
+          <input type="text" id="regUsername" autocomplete="username" required minlength="3" maxlength="20" pattern="[a-zA-Z0-9_]+">
+        </div>
+        <div class="form-group">
+          <label for="regPassword">Password <span class="form-hint">min 8 characters</span></label>
+          <input type="password" id="regPassword" autocomplete="new-password" required minlength="8">
+        </div>
+        <div class="form-group">
+          <label for="regPasswordConfirm">Confirm Password</label>
+          <input type="password" id="regPasswordConfirm" autocomplete="new-password" required minlength="8">
+        </div>
+        <p class="form-error" id="registerError" aria-live="polite" hidden></p>
+        <button type="submit" class="btn" style="width:100%;margin-top:0.25rem">Create Account</button>
+      </form>
+    </div>`;
+  document.body.appendChild(modal);
+
+  document.getElementById('modalClose').addEventListener('click', closeAuthModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeAuthModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAuthModal(); });
+  document.querySelectorAll('.modal-tab').forEach(t => {
+    t.addEventListener('click', () => setAuthTab(t.dataset.tab));
+  });
+  document.getElementById('loginForm').addEventListener('submit', handleLogin);
+  document.getElementById('registerForm').addEventListener('submit', handleRegister);
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl    = document.getElementById('loginError');
+  errEl.hidden   = true;
+  try {
+    const res  = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error || 'Login failed.'; errEl.hidden = false; return; }
+    currentUser = data;
+    closeAuthModal();
+    updateAuthNav();
+    window.location.reload();
+  } catch {
+    errEl.textContent = 'Network error. Please try again.';
+    errEl.hidden = false;
+  }
+}
+
+async function handleRegister(e) {
+  e.preventDefault();
+  const username = document.getElementById('regUsername').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const confirm  = document.getElementById('regPasswordConfirm').value;
+  const errEl    = document.getElementById('registerError');
+  errEl.hidden   = true;
+  if (password !== confirm) {
+    errEl.textContent = 'Passwords do not match.';
+    errEl.hidden = false;
+    return;
+  }
+  try {
+    const res  = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error || 'Registration failed.'; errEl.hidden = false; return; }
+    currentUser = data;
+    closeAuthModal();
+    updateAuthNav();
+    window.location.reload();
+  } catch {
+    errEl.textContent = 'Network error. Please try again.';
+    errEl.hidden = false;
+  }
+}
+
+// ─── Progress ─────────────────────────────────────────────────────────────────
+
+async function saveProgress(topicId, score, total) {
+  if (!currentUser) return;
+  try {
+    await fetch(`/api/progress/${topicId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ score, total }),
+    });
+  } catch { /* don't disrupt the user experience */ }
+}
+
 // ─── Init ──────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
   initHamburger();
   initSmoothScroll();
+  initAuth();
 
   if (isHomePage()) {
     initTypewriter();

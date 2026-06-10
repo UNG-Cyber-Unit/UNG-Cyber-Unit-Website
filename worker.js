@@ -934,12 +934,203 @@ function notFoundResponse() {
   return new Response(html, { status: 404, headers });
 }
 
+// ─── Auth & Progress Helpers ─────────────────────────────────────────────────
+
+function jsonResponse(data, status = 200, extra = {}) {
+  const h = new Headers({ 'Content-Type': 'application/json' });
+  for (const [k, v] of Object.entries(extra)) h.set(k, v);
+  addSecurityHeaders(h);
+  return new Response(JSON.stringify(data), { status, headers: h });
+}
+
+function parseCookies(header) {
+  if (!header) return {};
+  return Object.fromEntries(
+    header.split(';').map(c => {
+      const [k, ...v] = c.trim().split('=');
+      return [k.trim(), v.join('=').trim()];
+    })
+  );
+}
+
+function timingSafeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+async function hashPassword(password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' }, key, 256
+  );
+  const hex = arr => Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+  return `${hex(salt)}:${hex(new Uint8Array(bits))}`;
+}
+
+async function verifyPassword(password, stored) {
+  const [saltHex, hashHex] = stored.split(':');
+  const salt = Uint8Array.from(saltHex.match(/.{2}/g), b => parseInt(b, 16));
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' }, key, 256
+  );
+  const computed = Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return timingSafeEqual(computed, hashHex);
+}
+
+async function signJWT(payload, secret) {
+  const b64u = obj => btoa(JSON.stringify(obj)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const header = b64u({ alg: 'HS256', typ: 'JWT' });
+  const body   = b64u(payload);
+  const data   = `${header}.${body}`;
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  return `${data}.${sigB64}`;
+}
+
+async function verifyJWT(token, secret) {
+  try {
+    const [h, p, s] = token.split('.');
+    if (!h || !p || !s) return null;
+    const key = await crypto.subtle.importKey(
+      'raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']
+    );
+    const sig = Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+    const valid = await crypto.subtle.verify('HMAC', key, sig, new TextEncoder().encode(`${h}.${p}`));
+    if (!valid) return null;
+    const payload = JSON.parse(atob(p.replace(/-/g, '+').replace(/_/g, '/')));
+    if (payload.exp && Date.now() / 1000 > payload.exp) return null;
+    return payload;
+  } catch { return null; }
+}
+
+async function getSession(request, secret) {
+  const cookies = parseCookies(request.headers.get('Cookie'));
+  return cookies.session ? verifyJWT(cookies.session, secret) : null;
+}
+
+function sessionCookie(token, maxAge) {
+  return `session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${maxAge}`;
+}
+
 // ─── Worker Entry Point ───────────────────────────────────────────────────────
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
+
+    // ── Auth & Progress API ──────────────────────────────────────────────────
+    if (path.startsWith('/api/auth/') || path.startsWith('/api/progress')) {
+      if (!env.JWT_SECRET) return jsonResponse({ error: 'Server not configured' }, 503);
+
+      // POST /api/auth/register
+      if (path === '/api/auth/register' && request.method === 'POST') {
+        if (!env.DB) return jsonResponse({ error: 'Database not configured' }, 503);
+        let body;
+        try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request body' }, 400); }
+        const { username, password } = body ?? {};
+        if (!username || !password) return jsonResponse({ error: 'Username and password required' }, 400);
+        if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) return jsonResponse({ error: 'Username must be 3–20 alphanumeric characters or underscores' }, 400);
+        if (typeof password !== 'string' || password.length < 8) return jsonResponse({ error: 'Password must be at least 8 characters' }, 400);
+        if (password.length > 128) return jsonResponse({ error: 'Password too long' }, 400);
+
+        const existing = await env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(username).first();
+        if (existing) return jsonResponse({ error: 'Username already taken' }, 409);
+
+        const hash = await hashPassword(password);
+        const result = await env.DB.prepare(
+          'INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)'
+        ).bind(username, hash, Date.now()).run();
+
+        const token = await signJWT(
+          { sub: result.meta.last_row_id, username, exp: Math.floor(Date.now() / 1000) + 7 * 24 * 3600 },
+          env.JWT_SECRET
+        );
+        return jsonResponse({ username }, 201, { 'Set-Cookie': sessionCookie(token, 7 * 24 * 3600) });
+      }
+
+      // POST /api/auth/login
+      if (path === '/api/auth/login' && request.method === 'POST') {
+        if (!env.DB) return jsonResponse({ error: 'Database not configured' }, 503);
+        let body;
+        try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request body' }, 400); }
+        const { username, password } = body ?? {};
+        if (!username || !password) return jsonResponse({ error: 'Username and password required' }, 400);
+
+        const user = await env.DB.prepare(
+          'SELECT id, username, password_hash FROM users WHERE username = ?'
+        ).bind(username).first();
+        const valid = user && await verifyPassword(String(password), user.password_hash);
+        // Always return the same error to prevent username enumeration
+        if (!valid) return jsonResponse({ error: 'Invalid username or password' }, 401);
+
+        const token = await signJWT(
+          { sub: user.id, username: user.username, exp: Math.floor(Date.now() / 1000) + 7 * 24 * 3600 },
+          env.JWT_SECRET
+        );
+        return jsonResponse({ username: user.username }, 200, { 'Set-Cookie': sessionCookie(token, 7 * 24 * 3600) });
+      }
+
+      // POST /api/auth/logout
+      if (path === '/api/auth/logout' && request.method === 'POST') {
+        return jsonResponse({ ok: true }, 200, { 'Set-Cookie': sessionCookie('', 0) });
+      }
+
+      // GET /api/auth/me
+      if (path === '/api/auth/me' && request.method === 'GET') {
+        const session = await getSession(request, env.JWT_SECRET);
+        if (!session) return jsonResponse({ error: 'Not authenticated' }, 401);
+        return jsonResponse({ username: session.username });
+      }
+
+      // GET /api/progress  — returns [] if not authenticated (graceful for logged-out users)
+      if (path === '/api/progress' && request.method === 'GET') {
+        if (!env.DB) return jsonResponse({ results: [] });
+        const session = await getSession(request, env.JWT_SECRET);
+        if (!session) return jsonResponse({ results: [] });
+        const { results } = await env.DB.prepare(
+          'SELECT topic_id, score, total FROM quiz_results WHERE user_id = ?'
+        ).bind(session.sub).all();
+        return jsonResponse({ results: results ?? [] });
+      }
+
+      // POST /api/progress/:topicId
+      const progressMatch = path.match(/^\/api\/progress\/(\w+)$/);
+      if (progressMatch && request.method === 'POST') {
+        if (!env.DB) return jsonResponse({ error: 'Database not configured' }, 503);
+        const session = await getSession(request, env.JWT_SECRET);
+        if (!session) return jsonResponse({ error: 'Not authenticated' }, 401);
+        let body;
+        try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request body' }, 400); }
+        const { score, total } = body ?? {};
+        if (typeof score !== 'number' || typeof total !== 'number' || score < 0 || total < 1 || score > total) {
+          return jsonResponse({ error: 'Invalid score data' }, 400);
+        }
+        const topicId = progressMatch[1];
+        // Upsert: keep the best (highest) score the user has achieved
+        await env.DB.prepare(`
+          INSERT INTO quiz_results (user_id, topic_id, score, total, updated_at)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(user_id, topic_id) DO UPDATE SET
+            score      = MAX(score, excluded.score),
+            total      = excluded.total,
+            updated_at = excluded.updated_at
+        `).bind(session.sub, topicId, score, total, Date.now()).run();
+        return jsonResponse({ ok: true });
+      }
+    }
 
     // ── API: list all topics (summary only) ──────────────────────────────────
     if (path === '/api/topics') {
