@@ -27,3 +27,9 @@ Thumbs.db
 # Build output (if added later)
 dist/
 build/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
