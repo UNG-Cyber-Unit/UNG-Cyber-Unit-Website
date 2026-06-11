@@ -980,6 +980,14 @@ function renderQuiz(questions, topicId = null) {
       correct  = 0;
       renderQuiz(questions, topicId);
     }, { once: true });
+
+    const resetBtn = document.getElementById('resetProgressBtn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        if (!confirm('Reset your saved progress for this topic? This cannot be undone.')) return;
+        resetProgress(topicId);
+      }, { once: true });
+    }
   }
 }
 
@@ -1385,6 +1393,18 @@ async function saveProgress(topicId, score, total) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ score, total }),
     });
+  } catch { /* don't disrupt the user experience */ }
+}
+
+async function resetProgress(topicId) {
+  if (!currentUser) return;
+  try {
+    await fetch(`/api/progress/${topicId}`, { method: 'DELETE' });
+    // Remove the "Your best" banner and re-render the quiz fresh
+    const banner = document.getElementById('progressBanner');
+    if (banner) banner.remove();
+    const scoreEl = document.getElementById('quizScore');
+    if (scoreEl) scoreEl.style.display = 'none';
   } catch { /* don't disrupt the user experience */ }
 }
 

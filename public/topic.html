@@ -73,7 +73,10 @@
             <div class="quiz-score" id="quizScore" style="display:none;" aria-live="polite">
               <div class="quiz-score-num" id="quizScoreNum"></div>
               <div class="quiz-score-msg" id="quizScoreMsg"></div>
-              <button class="btn" id="tryAgainBtn" style="margin-top:1rem;" aria-label="Reset quiz and try again">Try Again</button>
+              <div style="display:flex;gap:0.75rem;margin-top:1rem;flex-wrap:wrap;">
+                <button class="btn" id="tryAgainBtn" aria-label="Reset quiz and try again">Try Again</button>
+                <button class="btn btn-danger" id="resetProgressBtn" aria-label="Wipe saved progress for this topic">Reset Progress</button>
+              </div>
             </div>
           </section>
 

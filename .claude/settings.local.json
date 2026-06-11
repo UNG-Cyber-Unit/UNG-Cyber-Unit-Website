@@ -2,7 +2,20 @@
   "permissions": {
     "allow": [
       "Bash(git check-ignore *)",
-      "Bash(npm audit *)"
+      "Bash(npm audit *)",
+      "Bash(curl -si http://localhost:8787/topic)",
+      "Bash(curl -si http://localhost:8787/resources)",
+      "Bash(pkill -f \"wrangler dev\")",
+      "Bash(npx wrangler *)",
+      "Bash(curl -si http://localhost:8787/topic/01)",
+      "Bash(curl -si http://localhost:8787/topic/11)",
+      "Bash(curl -si http://localhost:8787/)",
+      "Bash(curl -si http://localhost:8787/about)",
+      "Bash(curl -s http://localhost:8787/debug-assets)",
+      "Bash(curl -si http://localhost:8787/api/topics)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git *)"
     ]
   }
 }

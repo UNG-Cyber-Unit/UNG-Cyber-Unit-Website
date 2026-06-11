@@ -1106,8 +1106,19 @@ export default {
         return jsonResponse({ results: results ?? [] });
       }
 
-      // POST /api/progress/:topicId
+      // DELETE /api/progress/:topicId
       const progressMatch = path.match(/^\/api\/progress\/(\w+)$/);
+      if (progressMatch && request.method === 'DELETE') {
+        if (!env.DB) return jsonResponse({ error: 'Database not configured' }, 503);
+        const session = await getSession(request, env.JWT_SECRET);
+        if (!session) return jsonResponse({ error: 'Not authenticated' }, 401);
+        await env.DB.prepare(
+          'DELETE FROM quiz_results WHERE user_id = ? AND topic_id = ?'
+        ).bind(session.sub, progressMatch[1]).run();
+        return jsonResponse({ ok: true });
+      }
+
+      // POST /api/progress/:topicId
       if (progressMatch && request.method === 'POST') {
         if (!env.DB) return jsonResponse({ error: 'Database not configured' }, 503);
         const session = await getSession(request, env.JWT_SECRET);
