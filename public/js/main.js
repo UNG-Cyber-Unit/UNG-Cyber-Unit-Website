@@ -1237,18 +1237,41 @@ function updateAuthNav() {
   const navItem = document.getElementById('authNavItem');
   if (!navItem) return;
   if (currentUser) {
-    const instructorLink = isInstructor()
-      ? `<a href="/instructor" class="btn btn-sm">Instructor Panel</a>`
+    const dropdownItems = [
+      isInstructor() ? `<a href="/instructor" class="nav-dropdown-item">Instructor Panel</a>` : '',
+      currentUser.role === 'admin' ? `<a href="/admin" class="nav-dropdown-item nav-dropdown-item--danger">Admin Panel</a>` : '',
+    ].filter(Boolean).join('');
+
+    const wrenchBtn = dropdownItems
+      ? `<div class="nav-dropdown" id="navDropdown">
+           <button class="nav-dropdown-toggle" id="navDropdownBtn" aria-label="Panel options" aria-expanded="false">🔧</button>
+           <div class="nav-dropdown-menu" id="navDropdownMenu" hidden>${dropdownItems}</div>
+         </div>`
       : '';
-    const adminLink = currentUser.role === 'admin'
-      ? `<a href="/admin" class="btn btn-sm btn-danger">Admin</a>`
-      : '';
+
     navItem.innerHTML = `
-      ${instructorLink}
-      ${adminLink}
+      ${wrenchBtn}
       <span class="navbar-username">${escHtml(currentUser.username)}</span>
       <button class="btn btn-sm" id="logoutBtn">Sign Out</button>`;
+
     document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+
+    const dropdownBtn = document.getElementById('navDropdownBtn');
+    const dropdownMenu = document.getElementById('navDropdownMenu');
+    if (dropdownBtn && dropdownMenu) {
+      dropdownBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const nowOpen = dropdownMenu.hidden;
+        dropdownMenu.hidden = !nowOpen;
+        dropdownBtn.setAttribute('aria-expanded', nowOpen);
+      });
+      document.addEventListener('click', e => {
+        if (!dropdownMenu.hidden && !dropdownMenu.contains(e.target)) {
+          dropdownMenu.hidden = true;
+          dropdownBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
   } else {
     navItem.innerHTML = `<button class="btn btn-sm" id="openAuthBtn">Sign In</button>`;
     document.getElementById('openAuthBtn').addEventListener('click', () => openAuthModal('login'));
