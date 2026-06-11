@@ -232,7 +232,7 @@ question,answer_a,answer_b,answer_c,answer_d,correct,explanation
 
 ### Page: `/admin` (tab within or linked from `/instructor`)
 - Gated: redirect to home if `currentUser.role !== 'admin'`
-- Nav shows "Admin" link only for `admin` role (separate from "Instructor Panel")
+- Nav shows a 🔧 dropdown for elevated roles — "Instructor Panel" for instructor+, "Admin Panel" for admin only
 
 ### UI sections
 
@@ -263,9 +263,9 @@ question,answer_a,answer_b,answer_c,answer_d,correct,explanation
 ## Implementation Order
 
 1. **Phase 1** — Role system ✅ complete
-2. **Phase 2** — DB schema (new tables; required before any room logic)
-3. **Phase 3** — Backend endpoints (instructor + student APIs)
-4. **Phase 6** — Admin user management (backend + UI; self-contained, no room tables needed)
+2. **Phase 6** — Admin user management ✅ complete
+3. **Phase 2** — DB schema (new tables; required before any room logic)
+4. **Phase 3** — Backend endpoints (instructor + student APIs)
 5. **Phase 4** — Instructor panel UI
 6. **Phase 5** — Student quiz room UI
 
