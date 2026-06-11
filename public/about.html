@@ -177,21 +177,21 @@
       vertical-align: middle;
       color: var(--text-muted);
     }
-    /* ▾ rotates -90° → ▸ to indicate content opens rightward */
     .xo-toggle[aria-expanded="true"] .xo-caret {
-      transform: rotate(-90deg);
+      transform: rotate(-180deg);
     }
     .staff-panel {
       display: flex;
-      flex-wrap: nowrap;
+      flex-wrap: wrap;
+      justify-content: center;
       gap: 0;
       overflow: hidden;
-      max-width: 0;
+      max-height: 0;
       opacity: 0;
-      transition: max-width 0.35s ease, opacity 0.25s ease, gap 0.35s ease;
+      transition: max-height 0.35s ease, opacity 0.25s ease, gap 0.35s ease;
     }
     .staff-panel.open {
-      max-width: 800px;
+      max-height: 300px;
       opacity: 1;
       gap: 0.6rem;
     }
@@ -465,41 +465,13 @@
             </div>
           </div>
 
-          <!-- Tier 2: XO | staff panel (slides right) | DTL -->
-          <div class="org-level" style="flex-wrap:nowrap; align-items:center; gap:1rem;">
+          <!-- Tier 2: XO | DTL (same row, stable) -->
+          <div class="org-level" style="gap:1rem;">
 
             <div class="org-node xo-toggle" id="xoToggle" role="button" tabindex="0" aria-expanded="false" aria-controls="staffPanel">
               <div class="node-icon">🏅</div>
               <div class="node-title">Operations Officer<span class="xo-caret">▾</span></div>
               <div class="node-abbr">XO — Executive Officer</div>
-            </div>
-
-            <div class="staff-panel" id="staffPanel" aria-label="Staff Officers">
-              <div class="org-node">
-                <div class="node-icon">👤</div>
-                <div class="node-title">Personnel</div>
-                <div class="node-abbr">S-1</div>
-              </div>
-              <div class="org-node">
-                <div class="node-icon">🔍</div>
-                <div class="node-title">Intelligence</div>
-                <div class="node-abbr">S-2</div>
-              </div>
-              <div class="org-node">
-                <div class="node-icon">📋</div>
-                <div class="node-title">Training</div>
-                <div class="node-abbr">S-3</div>
-              </div>
-              <div class="org-node">
-                <div class="node-icon">📦</div>
-                <div class="node-title">Logistics</div>
-                <div class="node-abbr">S-4</div>
-              </div>
-              <div class="org-node">
-                <div class="node-icon">📢</div>
-                <div class="node-title">Public Affairs</div>
-                <div class="node-abbr">S-5</div>
-              </div>
             </div>
 
             <div class="org-node" style="border-color:rgba(0,255,136,0.3); border-style:dashed; flex-shrink:0;">
@@ -508,6 +480,35 @@
               <div class="node-abbr">DTL — Civilian Lead</div>
             </div>
 
+          </div>
+
+          <!-- Staff panel: expands downward below XO/DTL row -->
+          <div class="staff-panel" id="staffPanel" aria-label="Staff Officers">
+            <div class="org-node">
+              <div class="node-icon">👤</div>
+              <div class="node-title">Personnel</div>
+              <div class="node-abbr">S-1</div>
+            </div>
+            <div class="org-node">
+              <div class="node-icon">🔍</div>
+              <div class="node-title">Intelligence</div>
+              <div class="node-abbr">S-2</div>
+            </div>
+            <div class="org-node">
+              <div class="node-icon">📋</div>
+              <div class="node-title">Training</div>
+              <div class="node-abbr">S-3</div>
+            </div>
+            <div class="org-node">
+              <div class="node-icon">📦</div>
+              <div class="node-title">Logistics</div>
+              <div class="node-abbr">S-4</div>
+            </div>
+            <div class="org-node">
+              <div class="node-icon">📢</div>
+              <div class="node-title">Public Affairs</div>
+              <div class="node-abbr">S-5</div>
+            </div>
           </div>
 
           <!-- Tier 3: NCOIC -->
