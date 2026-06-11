@@ -1024,6 +1024,19 @@ function sessionCookie(token, maxAge) {
   return `session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${maxAge}`;
 }
 
+// ─── Role Helpers ─────────────────────────────────────────────────────────────
+
+const ROLE_RANK = { member: 0, instructor: 1, admin: 2 };
+
+async function requireRole(request, env, minRole) {
+  const session = await getSession(request, env.JWT_SECRET);
+  if (!session) return jsonResponse({ error: 'Not authenticated' }, 401);
+  if ((ROLE_RANK[session.role] ?? 0) < (ROLE_RANK[minRole] ?? 0)) {
+    return jsonResponse({ error: 'Forbidden' }, 403);
+  }
+  return session;
+}
+
 // ─── Worker Entry Point ───────────────────────────────────────────────────────
 
 export default {
@@ -1051,14 +1064,14 @@ export default {
 
         const hash = await hashPassword(password);
         const result = await env.DB.prepare(
-          'INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)'
+          'INSERT INTO users (username, password_hash, role, created_at) VALUES (?, ?, \'member\', ?)'
         ).bind(username, hash, Date.now()).run();
 
         const token = await signJWT(
-          { sub: result.meta.last_row_id, username, exp: Math.floor(Date.now() / 1000) + 7 * 24 * 3600 },
+          { sub: result.meta.last_row_id, username, role: 'member', exp: Math.floor(Date.now() / 1000) + 7 * 24 * 3600 },
           env.JWT_SECRET
         );
-        return jsonResponse({ username }, 201, { 'Set-Cookie': sessionCookie(token, 7 * 24 * 3600) });
+        return jsonResponse({ username, role: 'member' }, 201, { 'Set-Cookie': sessionCookie(token, 7 * 24 * 3600) });
       }
 
       // POST /api/auth/login
@@ -1070,17 +1083,18 @@ export default {
         if (!username || !password) return jsonResponse({ error: 'Username and password required' }, 400);
 
         const user = await env.DB.prepare(
-          'SELECT id, username, password_hash FROM users WHERE username = ?'
+          'SELECT id, username, password_hash, role FROM users WHERE username = ?'
         ).bind(username).first();
         const valid = user && await verifyPassword(String(password), user.password_hash);
         // Always return the same error to prevent username enumeration
         if (!valid) return jsonResponse({ error: 'Invalid username or password' }, 401);
 
+        const role = user.role ?? 'member';
         const token = await signJWT(
-          { sub: user.id, username: user.username, exp: Math.floor(Date.now() / 1000) + 7 * 24 * 3600 },
+          { sub: user.id, username: user.username, role, exp: Math.floor(Date.now() / 1000) + 7 * 24 * 3600 },
           env.JWT_SECRET
         );
-        return jsonResponse({ username: user.username }, 200, { 'Set-Cookie': sessionCookie(token, 7 * 24 * 3600) });
+        return jsonResponse({ username: user.username, role }, 200, { 'Set-Cookie': sessionCookie(token, 7 * 24 * 3600) });
       }
 
       // POST /api/auth/logout
@@ -1092,7 +1106,7 @@ export default {
       if (path === '/api/auth/me' && request.method === 'GET') {
         const session = await getSession(request, env.JWT_SECRET);
         if (!session) return jsonResponse({ error: 'Not authenticated' }, 401);
-        return jsonResponse({ username: session.username });
+        return jsonResponse({ username: session.username, role: session.role ?? 'member' });
       }
 
       // GET /api/progress  — returns [] if not authenticated (graceful for logged-out users)

@@ -7,7 +7,7 @@
 
 // ─── Auth State ───────────────────────────────────────────────────────────────
 
-let currentUser = null; // { username } or null
+let currentUser = null; // { username, role } or null
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
@@ -1229,11 +1229,19 @@ async function initAuth() {
   updateAuthNav();
 }
 
+function isInstructor() {
+  return currentUser?.role === 'instructor' || currentUser?.role === 'admin';
+}
+
 function updateAuthNav() {
   const navItem = document.getElementById('authNavItem');
   if (!navItem) return;
   if (currentUser) {
+    const instructorLink = isInstructor()
+      ? `<a href="/instructor" class="btn btn-sm">Instructor Panel</a>`
+      : '';
     navItem.innerHTML = `
+      ${instructorLink}
       <span class="navbar-username">${escHtml(currentUser.username)}</span>
       <button class="btn btn-sm" id="logoutBtn">Sign Out</button>`;
     document.getElementById('logoutBtn').addEventListener('click', handleLogout);
