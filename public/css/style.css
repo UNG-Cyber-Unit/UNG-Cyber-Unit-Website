@@ -1572,6 +1572,7 @@ footer {
   flex-direction: column;
   gap: 1rem;
 }
+.modal-form[hidden] { display: none; }
 
 .form-group {
   display: flex;
