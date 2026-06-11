@@ -1574,6 +1574,23 @@ footer {
 }
 .modal-form[hidden] { display: none; }
 
+.confirm-modal {
+  max-width: 340px;
+  border-color: var(--danger);
+}
+.confirm-message {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.9rem;
+  color: var(--text);
+  margin: 0 0 1.5rem;
+  line-height: 1.5;
+}
+.confirm-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;

@@ -173,6 +173,7 @@ async function renderTopicPage() {
       const heading = quizSection && quizSection.querySelector('h2');
       if (heading) {
         const banner = document.createElement('div');
+        banner.id = 'progressBanner';
         banner.className = 'prev-score-banner';
         const perfect = prevResult.score === prevResult.total;
         banner.innerHTML = `
@@ -182,6 +183,20 @@ async function renderTopicPage() {
         `;
         quizSection.insertBefore(banner, heading);
       }
+    }
+
+    // Reset progress button (works on fresh page load, before quiz is attempted)
+    const resetBtn = document.getElementById('resetProgressBtn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        confirmDialog('Reset your saved progress for this topic? This cannot be undone.', () => {
+          resetProgress(id, () => {
+            const scoreEl = document.getElementById('quizScore');
+            if (scoreEl) scoreEl.style.display = 'none';
+            renderQuiz(topic.quiz, id);
+          });
+        });
+      });
     }
 
     // Previous / Next navigation
@@ -981,13 +996,6 @@ function renderQuiz(questions, topicId = null) {
       renderQuiz(questions, topicId);
     }, { once: true });
 
-    const resetBtn = document.getElementById('resetProgressBtn');
-    if (resetBtn) {
-      resetBtn.addEventListener('click', () => {
-        if (!confirm('Reset your saved progress for this topic? This cannot be undone.')) return;
-        resetProgress(topicId);
-      }, { once: true });
-    }
   }
 }
 
@@ -1242,6 +1250,28 @@ async function handleLogout() {
   window.location.reload();
 }
 
+function confirmDialog(message, onConfirm) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay confirm-overlay';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.innerHTML = `
+    <div class="modal confirm-modal">
+      <p class="confirm-message">${escHtml(message)}</p>
+      <div class="confirm-actions">
+        <button class="btn" id="confirmCancel">Cancel</button>
+        <button class="btn btn-danger" id="confirmOk">Reset</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  overlay.querySelector('#confirmCancel').addEventListener('click', close);
+  overlay.querySelector('#confirmOk').addEventListener('click', () => { close(); onConfirm(); });
+  overlay.querySelector('#confirmOk').focus();
+}
+
 function openAuthModal(tab) {
   const modal = document.getElementById('authModal');
   if (!modal) return;
@@ -1396,15 +1426,13 @@ async function saveProgress(topicId, score, total) {
   } catch { /* don't disrupt the user experience */ }
 }
 
-async function resetProgress(topicId) {
+async function resetProgress(topicId, onReset) {
   if (!currentUser) return;
   try {
     await fetch(`/api/progress/${topicId}`, { method: 'DELETE' });
-    // Remove the "Your best" banner and re-render the quiz fresh
     const banner = document.getElementById('progressBanner');
     if (banner) banner.remove();
-    const scoreEl = document.getElementById('quizScore');
-    if (scoreEl) scoreEl.style.display = 'none';
+    if (onReset) onReset();
   } catch { /* don't disrupt the user experience */ }
 }
 
