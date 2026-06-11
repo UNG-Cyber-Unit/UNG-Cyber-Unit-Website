@@ -1265,11 +1265,23 @@ function confirmDialog(message, onConfirm) {
     </div>`;
   document.body.appendChild(overlay);
 
-  const close = () => overlay.remove();
+  const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const btns = [overlay.querySelector('#confirmCancel'), overlay.querySelector('#confirmOk')];
+
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-  overlay.querySelector('#confirmCancel').addEventListener('click', close);
-  overlay.querySelector('#confirmOk').addEventListener('click', () => { close(); onConfirm(); });
-  overlay.querySelector('#confirmOk').focus();
+  btns[0].addEventListener('click', close);
+  btns[1].addEventListener('click', () => { close(); onConfirm(); });
+
+  function onKey(e) {
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      const next = btns[btns.indexOf(document.activeElement) === 0 ? 1 : 0];
+      next.focus();
+    }
+  }
+  document.addEventListener('keydown', onKey);
+  btns[1].focus();
 }
 
 function openAuthModal(tab) {
