@@ -1071,7 +1071,7 @@ export default {
           { sub: result.meta.last_row_id, username, role: 'member', exp: Math.floor(Date.now() / 1000) + 7 * 24 * 3600 },
           env.JWT_SECRET
         );
-        return jsonResponse({ username, role: 'member' }, 201, { 'Set-Cookie': sessionCookie(token, 7 * 24 * 3600) });
+        return jsonResponse({ id: result.meta.last_row_id, username, role: 'member' }, 201, { 'Set-Cookie': sessionCookie(token, 7 * 24 * 3600) });
       }
 
       // POST /api/auth/login
@@ -1094,7 +1094,7 @@ export default {
           { sub: user.id, username: user.username, role, exp: Math.floor(Date.now() / 1000) + 7 * 24 * 3600 },
           env.JWT_SECRET
         );
-        return jsonResponse({ username: user.username, role }, 200, { 'Set-Cookie': sessionCookie(token, 7 * 24 * 3600) });
+        return jsonResponse({ id: user.id, username: user.username, role }, 200, { 'Set-Cookie': sessionCookie(token, 7 * 24 * 3600) });
       }
 
       // POST /api/auth/logout
@@ -1106,7 +1106,7 @@ export default {
       if (path === '/api/auth/me' && request.method === 'GET') {
         const session = await getSession(request, env.JWT_SECRET);
         if (!session) return jsonResponse({ error: 'Not authenticated' }, 401);
-        return jsonResponse({ username: session.username, role: session.role ?? 'member' });
+        return jsonResponse({ id: session.sub, username: session.username, role: session.role ?? 'member' });
       }
 
       // GET /api/progress  — returns [] if not authenticated (graceful for logged-out users)
@@ -1157,6 +1157,47 @@ export default {
       }
     }
 
+    // ── Admin API ────────────────────────────────────────────────────────────
+    if (path.startsWith('/api/admin/')) {
+      if (!env.JWT_SECRET || !env.DB) return jsonResponse({ error: 'Server not configured' }, 503);
+
+      const session = await requireRole(request, env, 'admin');
+      if (session instanceof Response) return session;
+
+      // GET /api/admin/users
+      if (path === '/api/admin/users' && request.method === 'GET') {
+        const { results } = await env.DB.prepare(
+          'SELECT id, username, role, created_at FROM users ORDER BY created_at DESC'
+        ).all();
+        return jsonResponse({ results: results ?? [] });
+      }
+
+      // PATCH /api/admin/users/:id — change role
+      const adminUserMatch = path.match(/^\/api\/admin\/users\/(\d+)$/);
+      if (adminUserMatch && request.method === 'PATCH') {
+        const targetId = parseInt(adminUserMatch[1], 10);
+        if (targetId === session.sub) return jsonResponse({ error: 'Cannot modify your own account' }, 403);
+        let body;
+        try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request body' }, 400); }
+        const { role } = body ?? {};
+        if (!['member', 'instructor', 'admin'].includes(role)) return jsonResponse({ error: 'Invalid role' }, 400);
+        const info = await env.DB.prepare('UPDATE users SET role = ? WHERE id = ?').bind(role, targetId).run();
+        if (info.meta.changes === 0) return jsonResponse({ error: 'User not found' }, 404);
+        return jsonResponse({ ok: true });
+      }
+
+      // DELETE /api/admin/users/:id
+      if (adminUserMatch && request.method === 'DELETE') {
+        const targetId = parseInt(adminUserMatch[1], 10);
+        if (targetId === session.sub) return jsonResponse({ error: 'Cannot delete your own account' }, 403);
+        await env.DB.batch([
+          env.DB.prepare('DELETE FROM quiz_results WHERE user_id = ?').bind(targetId),
+          env.DB.prepare('DELETE FROM users WHERE id = ?').bind(targetId),
+        ]);
+        return jsonResponse({ ok: true });
+      }
+    }
+
     // ── API: list all topics (summary only) ──────────────────────────────────
     if (path === '/api/topics') {
       const summary = topics.map(({ id, title, icon, shortDesc, image, difficulty, readTime }) => ({
@@ -1189,6 +1230,7 @@ export default {
       '/': '/',
       '/resources': '/resources',
       '/about': '/about',
+      '/admin': '/admin',
     };
 
     // topic/:id — any path matching /topic/<something>

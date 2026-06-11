@@ -1240,8 +1240,12 @@ function updateAuthNav() {
     const instructorLink = isInstructor()
       ? `<a href="/instructor" class="btn btn-sm">Instructor Panel</a>`
       : '';
+    const adminLink = currentUser.role === 'admin'
+      ? `<a href="/admin" class="btn btn-sm btn-danger">Admin</a>`
+      : '';
     navItem.innerHTML = `
       ${instructorLink}
+      ${adminLink}
       <span class="navbar-username">${escHtml(currentUser.username)}</span>
       <button class="btn btn-sm" id="logoutBtn">Sign Out</button>`;
     document.getElementById('logoutBtn').addEventListener('click', handleLogout);
@@ -1456,17 +1460,142 @@ async function resetProgress(topicId, onReset) {
   } catch { /* don't disrupt the user experience */ }
 }
 
+// ─── Admin Panel ──────────────────────────────────────────────────────────────
+
+async function initAdminPanel() {
+  if (currentUser?.role !== 'admin') {
+    window.location.replace('/');
+    return;
+  }
+
+  let allUsers = [];
+
+  async function loadUsers() {
+    const wrap = document.getElementById('adminTableWrap');
+    try {
+      const res = await fetch('/api/admin/users');
+      if (!res.ok) throw new Error();
+      const { results } = await res.json();
+      allUsers = results;
+      renderTable(allUsers);
+    } catch {
+      wrap.innerHTML = `<p style="color:var(--danger);font-family:'Share Tech Mono',monospace;">Failed to load users.</p>`;
+    }
+  }
+
+  function renderTable(users) {
+    const wrap = document.getElementById('adminTableWrap');
+    if (!users.length) {
+      wrap.innerHTML = `<p style="color:var(--text-muted);font-family:'Share Tech Mono',monospace;">No users found.</p>`;
+      return;
+    }
+    wrap.innerHTML = `
+      <table class="admin-table" role="table" aria-label="User list">
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Role</th>
+            <th>Joined</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${users.map(u => {
+            const isSelf = u.id === currentUser?.id;
+            const joined = new Date(u.created_at).toLocaleDateString();
+            return `
+              <tr data-uid="${u.id}">
+                <td style="font-family:'Share Tech Mono',monospace;">${escHtml(u.username)}</td>
+                <td>
+                  <select class="role-select" data-uid="${u.id}" ${isSelf ? 'disabled' : ''} aria-label="Role for ${escHtml(u.username)}">
+                    <option value="member"     ${u.role === 'member'     ? 'selected' : ''}>member</option>
+                    <option value="instructor" ${u.role === 'instructor' ? 'selected' : ''}>instructor</option>
+                    <option value="admin"      ${u.role === 'admin'      ? 'selected' : ''}>admin</option>
+                  </select>
+                </td>
+                <td style="color:var(--text-muted);font-size:0.85rem;">${joined}</td>
+                <td>
+                  <button class="btn btn-danger btn-sm delete-user-btn" data-uid="${u.id}" data-username="${escHtml(u.username)}" ${isSelf ? 'disabled title="Cannot delete your own account"' : ''}>
+                    Delete
+                  </button>
+                </td>
+              </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+
+    wrap.querySelectorAll('.role-select').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        const uid = parseInt(sel.dataset.uid, 10);
+        const newRole = sel.value;
+        const user = allUsers.find(u => u.id === uid);
+        const prevRole = user?.role;
+
+        const doChange = async () => {
+          const res = await fetch(`/api/admin/users/${uid}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: newRole }),
+          });
+          if (res.ok) {
+            if (user) user.role = newRole;
+          } else {
+            sel.value = prevRole;
+            alert('Failed to update role.');
+          }
+        };
+
+        if (prevRole === 'admin') {
+          confirmDialog(`Remove admin from ${user?.username ?? 'this user'}? This cannot be undone.`, doChange);
+          sel.value = prevRole;
+        } else {
+          await doChange();
+        }
+      });
+    });
+
+    wrap.querySelectorAll('.delete-user-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const uid = parseInt(btn.dataset.uid, 10);
+        const username = btn.dataset.username;
+        confirmDialog(`Permanently delete account "${username}"? This will erase all their quiz data.`, async () => {
+          const res = await fetch(`/api/admin/users/${uid}`, { method: 'DELETE' });
+          if (res.ok) {
+            allUsers = allUsers.filter(u => u.id !== uid);
+            renderTable(filterUsers(document.getElementById('userSearch')?.value ?? ''));
+          } else {
+            alert('Failed to delete user.');
+          }
+        });
+      });
+    });
+  }
+
+  function filterUsers(query) {
+    const q = query.trim().toLowerCase();
+    return q ? allUsers.filter(u => u.username.toLowerCase().includes(q)) : allUsers;
+  }
+
+  document.getElementById('userSearch')?.addEventListener('input', e => {
+    renderTable(filterUsers(e.target.value));
+  });
+
+  await loadUsers();
+}
+
 // ─── Init ──────────────────────────────────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   initHamburger();
   initSmoothScroll();
-  initAuth();
+  await initAuth();
 
   if (isHomePage()) {
     initTypewriter();
     renderTopicGrid();
   } else if (window.location.pathname.startsWith('/topic/')) {
     renderTopicPage();
+  } else if (window.location.pathname === '/admin') {
+    initAdminPanel();
   }
 });

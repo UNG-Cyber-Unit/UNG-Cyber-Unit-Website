@@ -226,13 +226,48 @@ question,answer_a,answer_b,answer_c,answer_d,correct,explanation
 
 ---
 
+---
+
+## Phase 6 — Admin User Management
+
+### Page: `/admin` (tab within or linked from `/instructor`)
+- Gated: redirect to home if `currentUser.role !== 'admin'`
+- Nav shows "Admin" link only for `admin` role (separate from "Instructor Panel")
+
+### UI sections
+
+**User List**
+- Table: username, role, created date, action buttons
+- Paginated or scrollable if user count grows
+- Search/filter by username
+
+**Actions per user**
+- **Change role** — dropdown to set `member`, `instructor`, or `admin`; confirm with themed dialog before demoting an admin
+- **Delete account** — themed `confirmDialog`; cascades to delete their quiz attempts and results
+- Admin cannot delete or demote their own account (button disabled with tooltip)
+
+### Backend endpoints
+
+| Method | Path | Role | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/admin/users` | admin | List all users (id, username, role, created_at) |
+| `PATCH` | `/api/admin/users/:id` | admin | Update role |
+| `DELETE` | `/api/admin/users/:id` | admin | Delete user + cascade their data |
+
+**Rules:**
+- Admin cannot modify their own account via these endpoints (enforced server-side)
+- Role value must be one of `member`, `instructor`, `admin` — reject anything else
+
+---
+
 ## Implementation Order
 
-1. **Phase 1** — Role system (small DB change + auth plumbing; everything else depends on it)
+1. **Phase 1** — Role system ✅ complete
 2. **Phase 2** — DB schema (new tables; required before any room logic)
 3. **Phase 3** — Backend endpoints (instructor + student APIs)
-4. **Phase 4** — Instructor panel UI
-5. **Phase 5** — Student quiz room UI
+4. **Phase 6** — Admin user management (backend + UI; self-contained, no room tables needed)
+5. **Phase 4** — Instructor panel UI
+6. **Phase 5** — Student quiz room UI
 
 ---
 
@@ -242,4 +277,3 @@ question,answer_a,answer_b,answer_c,answer_d,correct,explanation
 - Room-level leaderboards
 - Question randomization / answer shuffling
 - Time limits per quiz
-- Instructor-created accounts (first instructors promoted via DB directly)
