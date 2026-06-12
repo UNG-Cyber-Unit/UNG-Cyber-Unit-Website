@@ -2007,6 +2007,10 @@ footer {
   background: var(--bg);
 }
 
+.format-guide-body > div {
+  min-width: 0; /* prevent grid blowout from pre content */
+}
+
 .format-tab-heading {
   font-family: 'Share Tech Mono', monospace;
   font-size: 0.82rem;
