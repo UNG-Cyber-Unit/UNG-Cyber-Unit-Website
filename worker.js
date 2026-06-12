@@ -920,13 +920,15 @@ function notFoundResponse() {
     p { color: #666; margin: 1rem 0 2rem; font-size: 1.1rem; }
     a { color: #00ff88; text-decoration: none; border: 1px solid #00ff88; padding: 0.75rem 1.5rem; border-radius: 4px; }
     a:hover { background: #00ff8820; }
+    .secret { color: #111; font-size: 0.5rem; text-decoration: none; margin-left: 0.25rem; }
+    .secret:hover { color: #111; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>404</h1>
     <p>// Page not found. This route doesn't exist.</p>
-    <a href="/">← Return to Home</a>
+    <a href="/">← Return to Home</a><a href="/danica" class="secret">·</a>
   </div>
 </body>
 </html>`;
