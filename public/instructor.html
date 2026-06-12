@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberUnit @ UNG — Instructor Panel</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- ─── Navbar ──────────────────────────────────────────── -->
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+    <div class="container">
+      <a href="/" class="navbar-logo"><img src="/images/CyberUnitLogo_Transparent.png" alt="CyberUnit @ UNG" class="navbar-logo-img"><span class="navbar-logo-text">[ CyberUnit @ UNG ]</span></a>
+      <button class="hamburger" id="hamburger" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="navbar-links" id="navLinks">
+        <li><a href="/">Home</a></li>
+        <li><a href="/resources">Resources</a></li>
+        <li><a href="/about">About</a></li>
+        <li id="authNavItem"></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="page-body">
+    <div class="container" style="max-width: 960px; padding: 2rem 1rem;">
+
+      <header style="margin-bottom: 2rem;">
+        <h1 style="font-family: 'Share Tech Mono', monospace; color: var(--accent); font-size: 1.6rem; margin: 0 0 0.25rem;">
+          // Instructor Panel
+        </h1>
+        <p style="color: var(--text-muted); font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; margin: 0;">
+          Create quiz rooms and review student results
+        </p>
+      </header>
+
+      <!-- ─── Create Room ──────────────────────────────────── -->
+      <section id="createRoomSection" class="instructor-section">
+        <h2 class="instructor-section-heading">// Create Room</h2>
+
+        <form id="createRoomForm" novalidate>
+          <div class="instructor-form-grid">
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label for="roomTitle">Room Title</label>
+              <input type="text" id="roomTitle" placeholder="e.g. Cyber Unit Promotion Board — Spring 2026" autocomplete="off">
+            </div>
+
+            <div class="form-group">
+              <label for="roomFile">Question File <span class="form-hint">.csv or .json</span></label>
+              <div class="file-input-wrap">
+                <input type="file" id="roomFile" accept=".csv,.json" class="file-input-hidden" aria-label="Upload CSV or JSON question file">
+                <label for="roomFile" class="file-input-label">
+                  <span class="file-input-icon" aria-hidden="true">📁</span>
+                  <span id="fileInputText">Choose .csv or .json file...</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="roomExpiry">Expiry Date/Time <span class="form-hint">optional — leave blank for no expiry</span></label>
+              <input type="datetime-local" id="roomExpiry">
+            </div>
+          </div>
+
+          <p class="form-error" id="createRoomError" aria-live="polite" hidden></p>
+          <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Create Room</button>
+        </form>
+
+        <!-- Success banner -->
+        <div id="createRoomSuccess" class="room-created-banner" hidden>
+          <div>
+            <p style="margin: 0 0 0.35rem; font-family: 'Share Tech Mono', monospace; color: var(--accent); font-size: 0.9rem;">Room created successfully!</p>
+            <p style="margin: 0; color: var(--text-muted); font-size: 0.85rem;">
+              Code: <strong id="newRoomCode" style="color: var(--text); font-family: 'Share Tech Mono', monospace; letter-spacing: 0.1em;"></strong>
+              &nbsp;·&nbsp; <span id="newRoomQuestionCount"></span> questions loaded
+            </p>
+          </div>
+          <button class="btn btn-sm" id="copyCodeBtn">Copy Link</button>
+        </div>
+      </section>
+
+      <!-- ─── My Rooms ─────────────────────────────────────── -->
+      <section id="myRoomsSection" class="instructor-section">
+        <h2 class="instructor-section-heading">// My Rooms</h2>
+        <div id="roomsTableWrap">
+          <p style="color: var(--text-muted); font-family: 'Share Tech Mono', monospace;">Loading rooms...</p>
+        </div>
+      </section>
+
+      <!-- ─── Results view (hidden until "View Results" clicked) ── -->
+      <section id="resultsSection" class="instructor-section" hidden>
+        <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+          <button class="btn btn-sm" id="backToRoomsBtn">← Back to Rooms</button>
+          <div>
+            <h2 id="resultsRoomTitle" class="instructor-section-heading" style="margin: 0;"></h2>
+            <p style="margin: 0.15rem 0 0; font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; color: var(--text-muted);">
+              Code: <span id="resultsRoomCode" style="color: var(--text);"></span>
+            </p>
+          </div>
+          <button class="btn btn-sm" id="exportCsvBtn" style="margin-left: auto;">Export CSV</button>
+        </div>
+        <div id="resultsSummary"></div>
+        <div id="resultsRoster" style="margin-top: 1.5rem;"></div>
+      </section>
+
+    </div>
+  </main>
+
+  <script src="/js/main.js"></script>
+</body>
+</html>

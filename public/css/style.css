@@ -1769,3 +1769,208 @@ footer {
 }
 .role-select:focus { outline: 1px solid var(--accent); }
 .role-select:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ─── Instructor Panel ────────────────────────────────────────────────────── */
+
+.instructor-section {
+  margin-bottom: 2.5rem;
+}
+
+.instructor-section-heading {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.05rem;
+  color: var(--accent);
+  margin: 0 0 1.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.instructor-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* File input */
+.file-input-hidden {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.file-input-wrap {
+  position: relative;
+}
+
+.file-input-label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.55rem 0.9rem;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+  min-height: 44px;
+}
+
+.file-input-label:hover,
+.file-input-hidden:focus + .file-input-label {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.file-input-icon { font-size: 1rem; flex-shrink: 0; }
+
+/* Room created success banner */
+.room-created-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: rgba(0, 255, 136, 0.06);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  margin-top: 1.25rem;
+  flex-wrap: wrap;
+}
+
+/* Status badges */
+.status-badge {
+  display: inline-block;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.status-open {
+  background: rgba(0, 255, 136, 0.1);
+  color: var(--accent);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+.status-closed {
+  background: rgba(102, 102, 102, 0.15);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+/* Room action buttons — tighter spacing */
+.room-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+/* Results summary grid */
+.results-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.results-stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.results-stat-val {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.5rem;
+  color: var(--accent);
+}
+
+.results-stat-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Expand button */
+.expand-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.4rem;
+  transition: color 0.2s;
+  font-family: 'Share Tech Mono', monospace;
+}
+
+.expand-btn:hover { color: var(--accent); }
+
+/* Per-student answer breakdown */
+.answer-detail-wrap {
+  padding: 0.5rem 0.75rem 0.75rem 2.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid var(--border);
+}
+
+.answer-row {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid rgba(31, 31, 31, 0.5);
+  font-size: 0.85rem;
+}
+
+.answer-row:last-child { border-bottom: none; }
+
+.answer-icon {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: bold;
+  text-align: center;
+}
+
+.answer-correct .answer-icon { color: var(--accent); }
+.answer-wrong .answer-icon   { color: var(--danger); }
+
+.answer-question {
+  color: var(--text);
+  font-family: 'Exo 2', sans-serif;
+}
+
+.answer-choice {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.answer-correct .answer-choice { color: var(--accent); }
+.answer-wrong .answer-choice   { color: var(--danger); }
+
+/* Responsive */
+@media (max-width: 680px) {
+  .instructor-form-grid { grid-template-columns: 1fr; }
+  .results-summary-grid { grid-template-columns: repeat(3, 1fr); }
+  .room-actions { gap: 0.3rem; }
+}
+
+@media (max-width: 480px) {
+  .results-summary-grid { grid-template-columns: 1fr; }
+  .answer-row { grid-template-columns: 20px 1fr; }
+  .answer-choice { grid-column: 2; }
+}

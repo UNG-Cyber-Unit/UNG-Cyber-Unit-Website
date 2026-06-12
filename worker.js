@@ -1716,6 +1716,7 @@ export default {
       '/': '/',
       '/resources': '/resources',
       '/about': '/about',
+      '/instructor': '/instructor',
       '/admin': '/admin',
     };
 

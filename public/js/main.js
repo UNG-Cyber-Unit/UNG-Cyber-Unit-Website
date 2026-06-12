@@ -1285,7 +1285,7 @@ async function handleLogout() {
   window.location.reload();
 }
 
-function confirmDialog(message, onConfirm) {
+function confirmDialog(message, onConfirm, confirmLabel = 'Confirm') {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay confirm-overlay';
   overlay.setAttribute('role', 'dialog');
@@ -1295,7 +1295,7 @@ function confirmDialog(message, onConfirm) {
       <p class="confirm-message">${escHtml(message)}</p>
       <div class="confirm-actions">
         <button class="btn" id="confirmCancel">Cancel</button>
-        <button class="btn btn-danger" id="confirmOk">Reset</button>
+        <button class="btn btn-danger" id="confirmOk">${escHtml(confirmLabel)}</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -1569,7 +1569,7 @@ async function initAdminPanel() {
         };
 
         if (prevRole === 'admin') {
-          confirmDialog(`Remove admin from ${user?.username ?? 'this user'}? This cannot be undone.`, doChange);
+          confirmDialog(`Remove admin from ${user?.username ?? 'this user'}? This cannot be undone.`, doChange, 'Demote');
           sel.value = prevRole;
         } else {
           await doChange();
@@ -1589,7 +1589,7 @@ async function initAdminPanel() {
           } else {
             alert('Failed to delete user.');
           }
-        });
+        }, 'Delete');
       });
     });
   }
@@ -1606,6 +1606,332 @@ async function initAdminPanel() {
   await loadUsers();
 }
 
+// ─── Instructor Panel ─────────────────────────────────────────────────────────
+
+async function initInstructorPanel() {
+  if (!isInstructor()) {
+    window.location.replace('/');
+    return;
+  }
+
+  let allRooms = [];
+  let currentResultsData = null;
+
+  // File input label update
+  document.getElementById('roomFile')?.addEventListener('change', e => {
+    const file = e.target.files[0];
+    document.getElementById('fileInputText').textContent = file ? file.name : 'Choose .csv or .json file...';
+  });
+
+  // Copy new room code link
+  document.getElementById('copyCodeBtn')?.addEventListener('click', () => {
+    const code = document.getElementById('newRoomCode')?.textContent;
+    if (code) {
+      navigator.clipboard.writeText(`${window.location.origin}/quiz/${code}`).then(() => {
+        const btn = document.getElementById('copyCodeBtn');
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy Link'; }, 2000);
+      });
+    }
+  });
+
+  document.getElementById('backToRoomsBtn')?.addEventListener('click', () => showSection('rooms'));
+  document.getElementById('exportCsvBtn')?.addEventListener('click', exportResultsCSV);
+  document.getElementById('createRoomForm')?.addEventListener('submit', handleCreateRoom);
+
+  await loadRooms();
+
+  async function handleCreateRoom(e) {
+    e.preventDefault();
+    const errEl = document.getElementById('createRoomError');
+    const successEl = document.getElementById('createRoomSuccess');
+    errEl.hidden = true;
+    successEl.hidden = true;
+
+    const title = document.getElementById('roomTitle').value.trim();
+    const fileInput = document.getElementById('roomFile');
+    const expiry = document.getElementById('roomExpiry').value;
+
+    if (!title) { errEl.textContent = 'Room title is required.'; errEl.hidden = false; return; }
+    if (!fileInput.files.length) { errEl.textContent = 'Please select a .csv or .json question file.'; errEl.hidden = false; return; }
+
+    const fd = new FormData();
+    fd.append('title', title);
+    fd.append('file', fileInput.files[0]);
+    if (expiry) fd.append('expires_at', new Date(expiry).toISOString());
+
+    const submitBtn = e.target.querySelector('[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Creating...';
+
+    try {
+      const res = await fetch('/api/rooms', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) { errEl.textContent = data.error || 'Failed to create room.'; errEl.hidden = false; return; }
+      document.getElementById('newRoomCode').textContent = data.code;
+      document.getElementById('newRoomQuestionCount').textContent = data.questionCount;
+      successEl.hidden = false;
+      e.target.reset();
+      document.getElementById('fileInputText').textContent = 'Choose .csv or .json file...';
+      await loadRooms();
+    } catch {
+      errEl.textContent = 'Network error. Please try again.';
+      errEl.hidden = false;
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Create Room';
+    }
+  }
+
+  async function loadRooms() {
+    const wrap = document.getElementById('roomsTableWrap');
+    wrap.innerHTML = `<p style="color:var(--text-muted);font-family:'Share Tech Mono',monospace;">Loading rooms...</p>`;
+    try {
+      const res = await fetch('/api/rooms');
+      if (!res.ok) throw new Error();
+      const { results } = await res.json();
+      allRooms = results;
+      renderRoomsTable(allRooms);
+    } catch {
+      wrap.innerHTML = `<p style="color:var(--danger);font-family:'Share Tech Mono',monospace;">Failed to load rooms.</p>`;
+    }
+  }
+
+  function renderRoomsTable(rooms) {
+    const wrap = document.getElementById('roomsTableWrap');
+    if (!rooms.length) {
+      wrap.innerHTML = `
+        <div style="text-align:center;padding:3rem 1rem;color:var(--text-muted);font-family:'Share Tech Mono',monospace;background:var(--surface);border:1px solid var(--border);border-radius:6px;">
+          <p style="font-size:2rem;margin-bottom:0.75rem;">📋</p>
+          <p>No rooms yet. Create your first quiz room above.</p>
+        </div>`;
+      return;
+    }
+    wrap.innerHTML = `
+      <table class="admin-table" role="table" aria-label="Quiz rooms">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Code</th>
+            <th>Status</th>
+            <th style="text-align:center;">Qs</th>
+            <th style="text-align:center;">Attempts</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rooms.map(r => {
+            const isOpen = r.status === 'open';
+            return `
+              <tr>
+                <td style="font-family:'Share Tech Mono',monospace;">${escHtml(r.title)}</td>
+                <td><code>${escHtml(r.code)}</code></td>
+                <td><span class="status-badge status-${isOpen ? 'open' : 'closed'}">${isOpen ? 'Open' : 'Closed'}</span></td>
+                <td style="text-align:center;color:var(--text-muted);">${r.question_count}</td>
+                <td style="text-align:center;color:var(--text-muted);">${r.attempt_count}</td>
+                <td style="color:var(--text-muted);font-size:0.85rem;">${new Date(r.created_at).toLocaleDateString()}</td>
+                <td class="room-actions">
+                  <button class="btn btn-sm copy-link-btn" data-code="${escHtml(r.code)}">Copy Link</button>
+                  <button class="btn btn-sm toggle-status-btn" data-code="${escHtml(r.code)}" data-status="${escHtml(r.status)}">${isOpen ? 'Close' : 'Reopen'}</button>
+                  <button class="btn btn-sm view-results-btn" data-code="${escHtml(r.code)}" data-title="${escHtml(r.title)}">Results</button>
+                  <button class="btn btn-sm btn-danger delete-room-btn" data-code="${escHtml(r.code)}" data-title="${escHtml(r.title)}">Delete</button>
+                </td>
+              </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+
+    wrap.querySelectorAll('.copy-link-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        navigator.clipboard.writeText(`${window.location.origin}/quiz/${btn.dataset.code}`).then(() => {
+          btn.textContent = 'Copied!';
+          setTimeout(() => { btn.textContent = 'Copy Link'; }, 2000);
+        });
+      });
+    });
+
+    wrap.querySelectorAll('.toggle-status-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const newStatus = btn.dataset.status === 'open' ? 'closed' : 'open';
+        const res = await fetch(`/api/rooms/${btn.dataset.code}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus }),
+        });
+        if (res.ok) {
+          const room = allRooms.find(r => r.code === btn.dataset.code);
+          if (room) room.status = newStatus;
+          renderRoomsTable(allRooms);
+        } else {
+          alert('Failed to update room status.');
+        }
+      });
+    });
+
+    wrap.querySelectorAll('.view-results-btn').forEach(btn => {
+      btn.addEventListener('click', () => loadResults(btn.dataset.code, btn.dataset.title));
+    });
+
+    wrap.querySelectorAll('.delete-room-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        confirmDialog(`Delete room "${btn.dataset.title}" and all attempt data? This cannot be undone.`, async () => {
+          const res = await fetch(`/api/rooms/${btn.dataset.code}`, { method: 'DELETE' });
+          if (res.ok) {
+            allRooms = allRooms.filter(r => r.code !== btn.dataset.code);
+            renderRoomsTable(allRooms);
+          } else {
+            alert('Failed to delete room.');
+          }
+        }, 'Delete');
+      });
+    });
+  }
+
+  async function loadResults(code, title) {
+    showSection('results');
+    document.getElementById('resultsRoomTitle').textContent = `// ${title}`;
+    document.getElementById('resultsRoomCode').textContent = code;
+    document.getElementById('resultsSummary').innerHTML = `<p style="color:var(--text-muted);font-family:'Share Tech Mono',monospace;">Loading results...</p>`;
+    document.getElementById('resultsRoster').innerHTML = '';
+
+    try {
+      const res = await fetch(`/api/rooms/${code}/results`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      currentResultsData = { ...data, code };
+      renderResults(data);
+    } catch {
+      document.getElementById('resultsSummary').innerHTML = `<p style="color:var(--danger);font-family:'Share Tech Mono',monospace;">Failed to load results.</p>`;
+    }
+  }
+
+  function renderResults({ questions, attempts }) {
+    const summaryEl = document.getElementById('resultsSummary');
+    const rosterEl  = document.getElementById('resultsRoster');
+
+    const avgScore = attempts.length
+      ? (attempts.reduce((s, a) => s + a.score, 0) / attempts.length).toFixed(1)
+      : null;
+    const total = attempts.length ? attempts[0].total : questions.length;
+
+    summaryEl.innerHTML = `
+      <div class="results-summary-grid">
+        <div class="results-stat">
+          <span class="results-stat-val">${attempts.length}</span>
+          <span class="results-stat-label">Students Attempted</span>
+        </div>
+        <div class="results-stat">
+          <span class="results-stat-val">${avgScore !== null ? `${avgScore}/${total}` : '—'}</span>
+          <span class="results-stat-label">Average Score</span>
+        </div>
+        <div class="results-stat">
+          <span class="results-stat-val">${questions.length}</span>
+          <span class="results-stat-label">Questions</span>
+        </div>
+      </div>`;
+
+    if (!attempts.length) {
+      rosterEl.innerHTML = `
+        <div style="text-align:center;padding:2rem;color:var(--text-muted);font-family:'Share Tech Mono',monospace;background:var(--surface);border:1px solid var(--border);border-radius:6px;">
+          No attempts yet — share the room code with students to get started.
+        </div>`;
+      return;
+    }
+
+    rosterEl.innerHTML = `
+      <table class="admin-table" role="table" aria-label="Attempt roster">
+        <thead>
+          <tr>
+            <th style="width:28px;"></th>
+            <th>Student</th>
+            <th>Score</th>
+            <th>Completed</th>
+          </tr>
+        </thead>
+        <tbody id="rosterBody"></tbody>
+      </table>`;
+
+    const tbody = document.getElementById('rosterBody');
+    attempts.forEach(att => {
+      const pct = Math.round((att.score / att.total) * 100);
+      const scoreColor = att.score === att.total ? 'var(--accent)' : att.score / att.total >= 0.7 ? 'var(--warn)' : 'var(--danger)';
+
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td><button class="expand-btn" aria-expanded="false" aria-label="Expand answers for ${escHtml(att.username)}">▶</button></td>
+        <td style="font-family:'Share Tech Mono',monospace;">${escHtml(att.username)}</td>
+        <td><span style="font-family:'Share Tech Mono',monospace;color:${scoreColor};">${att.score}/${att.total} (${pct}%)</span></td>
+        <td style="color:var(--text-muted);font-size:0.85rem;">${new Date(att.completed_at).toLocaleString()}</td>`;
+
+      const detailRow = document.createElement('tr');
+      detailRow.className = 'answer-detail-row';
+      detailRow.hidden = true;
+      detailRow.innerHTML = `
+        <td colspan="4" style="padding:0;">
+          <div class="answer-detail-wrap">
+            ${questions.map((q, qi) => {
+              const ans = (att.answers ?? []).find(a => a.question_id === q.id);
+              const correct = ans?.is_correct;
+              const selectedLabel = ans !== undefined ? String.fromCharCode(65 + ans.selected) : '—';
+              const correctLabel = String.fromCharCode(65 + q.correct);
+              return `
+                <div class="answer-row ${correct ? 'answer-correct' : 'answer-wrong'}">
+                  <span class="answer-icon">${correct ? '✓' : '✗'}</span>
+                  <span class="answer-question">Q${qi + 1}: ${escHtml(q.question)}</span>
+                  <span class="answer-choice">Chose: ${selectedLabel}${!correct ? ` · Correct: ${correctLabel}` : ''}</span>
+                </div>`;
+            }).join('')}
+          </div>
+        </td>`;
+
+      row.querySelector('.expand-btn').addEventListener('click', e => {
+        const expanded = e.target.getAttribute('aria-expanded') === 'true';
+        detailRow.hidden = expanded;
+        e.target.setAttribute('aria-expanded', String(!expanded));
+        e.target.textContent = expanded ? '▶' : '▼';
+      });
+
+      tbody.appendChild(row);
+      tbody.appendChild(detailRow);
+    });
+  }
+
+  function exportResultsCSV() {
+    if (!currentResultsData) return;
+    const { code, questions, attempts } = currentResultsData;
+    const headers = [
+      'username', 'score', 'total', 'pct', 'completed_at',
+      ...questions.map((_, i) => `q${i + 1}_chose`),
+      ...questions.map((_, i) => `q${i + 1}_correct`),
+    ];
+    const rows = attempts.map(att => {
+      const ansMap = {};
+      (att.answers ?? []).forEach(a => { ansMap[a.question_id] = a; });
+      return [
+        att.username, att.score, att.total,
+        `${Math.round((att.score / att.total) * 100)}%`,
+        new Date(att.completed_at).toISOString(),
+        ...questions.map(q => { const a = ansMap[q.id]; return a !== undefined ? String.fromCharCode(65 + a.selected) : ''; }),
+        ...questions.map(q => String.fromCharCode(65 + q.correct)),
+      ];
+    });
+    const csv = [headers, ...rows]
+      .map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `results-${code}.csv`;
+    a.click();
+  }
+
+  function showSection(section) {
+    document.getElementById('createRoomSection').hidden = section !== 'rooms';
+    document.getElementById('myRoomsSection').hidden = section !== 'rooms';
+    document.getElementById('resultsSection').hidden = section !== 'results';
+  }
+}
+
 // ─── Init ──────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -1618,6 +1944,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderTopicGrid();
   } else if (window.location.pathname.startsWith('/topic/')) {
     renderTopicPage();
+  } else if (window.location.pathname === '/instructor') {
+    initInstructorPanel();
   } else if (window.location.pathname === '/admin') {
     initAdminPanel();
   }
