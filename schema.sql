@@ -15,3 +15,47 @@ CREATE TABLE IF NOT EXISTS quiz_results (
   PRIMARY KEY (user_id, topic_id),
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
+
+CREATE TABLE IF NOT EXISTS quiz_rooms (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  code        TEXT    UNIQUE NOT NULL,
+  title       TEXT    NOT NULL,
+  created_by  INTEGER NOT NULL,
+  expires_at  INTEGER,
+  status      TEXT    NOT NULL DEFAULT 'open',
+  created_at  INTEGER NOT NULL,
+  FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS quiz_room_questions (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  room_id     INTEGER NOT NULL,
+  sort_order  INTEGER NOT NULL DEFAULT 0,
+  question    TEXT    NOT NULL,
+  answers     TEXT    NOT NULL,
+  correct     INTEGER NOT NULL,
+  explanation TEXT    NOT NULL DEFAULT '',
+  FOREIGN KEY (room_id) REFERENCES quiz_rooms(id)
+);
+
+CREATE TABLE IF NOT EXISTS quiz_room_attempts (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  room_id      INTEGER NOT NULL,
+  user_id      INTEGER NOT NULL,
+  score        INTEGER NOT NULL,
+  total        INTEGER NOT NULL,
+  completed_at INTEGER NOT NULL,
+  UNIQUE (room_id, user_id),
+  FOREIGN KEY (room_id) REFERENCES quiz_rooms(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS quiz_room_answers (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  attempt_id   INTEGER NOT NULL,
+  question_id  INTEGER NOT NULL,
+  selected     INTEGER NOT NULL,
+  is_correct   INTEGER NOT NULL,
+  FOREIGN KEY (attempt_id)  REFERENCES quiz_room_attempts(id),
+  FOREIGN KEY (question_id) REFERENCES quiz_room_questions(id)
+);
