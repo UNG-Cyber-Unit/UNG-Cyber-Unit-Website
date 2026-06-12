@@ -69,7 +69,73 @@
           <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Create Room</button>
         </form>
 
-        <!-- Success banner -->
+        <!-- Format guide -->
+        <details class="format-guide">
+          <summary class="format-guide-summary">
+            📄 File Format Guide
+            <span class="format-guide-arrow">▼</span>
+          </summary>
+          <div class="format-guide-body">
+
+            <!-- CSV -->
+            <div>
+              <p class="format-tab-heading">CSV Format</p>
+              <table class="format-col-table" aria-label="CSV column reference">
+                <thead>
+                  <tr><th>Column</th><th>Required?</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>question</td>  <td><span class="req">required</span></td><td>Question text</td></tr>
+                  <tr><td>answer_a</td>  <td><span class="req">required</span></td><td>First answer choice</td></tr>
+                  <tr><td>answer_b</td>  <td><span class="req">required</span></td><td>Second answer choice</td></tr>
+                  <tr><td>answer_c</td>  <td><span class="opt">optional</span></td><td>Third choice — leave blank if unused</td></tr>
+                  <tr><td>answer_d</td>  <td><span class="opt">optional</span></td><td>Fourth choice — leave blank if unused</td></tr>
+                  <tr><td>correct</td>   <td><span class="req">required</span></td><td>0-indexed — 0=A, 1=B, 2=C, 3=D</td></tr>
+                  <tr><td>explanation</td><td><span class="opt">optional</span></td><td>Shown to student after submit</td></tr>
+                </tbody>
+              </table>
+              <pre class="format-code"><span class="hl">question,answer_a,answer_b,answer_c,answer_d,correct,explanation</span>
+"What does CIA stand for?","Confidentiality Integrity Availability","Central Intelligence Agency","Cyber Intrusion Analysis","Classified Information Access",0,"The CIA Triad is the foundation of cybersecurity."
+"True or False: Reusing passwords is safe.","True","False",,,1,"Reusing passwords means one breach exposes all accounts."
+"What does a firewall do?","Speeds up internet","Blocks unauthorized traffic","Deletes viruses",,1,"A firewall monitors and controls network traffic based on rules."</pre>
+              <p style="color:var(--text-muted);font-size:0.78rem;margin-top:0.5rem;font-family:'Share Tech Mono',monospace;">
+                Tip: build in Excel or Google Sheets, then export as <strong>CSV UTF-8</strong>.
+              </p>
+            </div>
+
+            <!-- JSON -->
+            <div>
+              <p class="format-tab-heading">JSON Format</p>
+              <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:0.75rem;">
+                An array of question objects. <code>answers</code> is a list of 2–4 strings; <code>correct</code> is the 0-based index of the right answer.
+              </p>
+              <pre class="format-code">[
+  {
+    <span class="hl">"question"</span>: "What does CIA stand for?",
+    <span class="hl">"answers"</span>: [
+      "Confidentiality Integrity Availability",
+      "Central Intelligence Agency",
+      "Cyber Intrusion Analysis"
+    ],
+    <span class="hl">"correct"</span>: 0,
+    <span class="hl">"explanation"</span>: "The CIA Triad is the foundation of cybersecurity."
+  },
+  {
+    <span class="hl">"question"</span>: "True or False: Reusing passwords is safe.",
+    <span class="hl">"answers"</span>: ["True", "False"],
+    <span class="hl">"correct"</span>: 1,
+    <span class="hl">"explanation"</span>: "Reusing passwords means one breach exposes all accounts."
+  }
+]</pre>
+              <p style="color:var(--text-muted);font-size:0.78rem;margin-top:0.5rem;font-family:'Share Tech Mono',monospace;">
+                <code>explanation</code> is optional. Save the file as <strong>.json</strong>.
+              </p>
+            </div>
+
+          </div>
+        </details>
+
+        <!-- Success banner (hidden until a room is successfully created) -->
         <div id="createRoomSuccess" class="room-created-banner" hidden>
           <div>
             <p style="margin: 0 0 0.35rem; font-family: 'Share Tech Mono', monospace; color: var(--accent); font-size: 0.9rem;">Room created successfully!</p>
