@@ -910,26 +910,64 @@ function notFoundResponse() {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>404 — CyberUnit @ UNG</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="/css/style.css">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #0d0d0d; color: #e0e0e0; font-family: 'Share Tech Mono', monospace; display: flex; align-items: center; justify-content: center; min-height: 100vh; text-align: center; }
-    .container { padding: 2rem; }
-    h1 { font-size: 6rem; color: #00ff88; line-height: 1; }
-    p { color: #666; margin: 1rem 0 2rem; font-size: 1.1rem; }
-    a { color: #00ff88; text-decoration: none; border: 1px solid #00ff88; padding: 0.75rem 1.5rem; border-radius: 4px; }
-    a:hover { background: #00ff8820; }
-    .secret { color: #111; font-size: 0.5rem; text-decoration: none; margin-left: 0.25rem; }
-    .secret:hover { color: #111; }
+    .not-found-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      text-align: center;
+      padding: 4rem 1rem;
+    }
+    .not-found-code {
+      font-size: 7rem;
+      color: var(--accent);
+      line-height: 1;
+      font-family: 'Share Tech Mono', monospace;
+    }
+    .not-found-msg {
+      color: var(--text-muted);
+      margin: 1rem 0 2rem;
+      font-size: 1.1rem;
+      font-family: 'Share Tech Mono', monospace;
+    }
+    .secret { color: var(--bg); font-size: 0.4rem; text-decoration: none; margin-left: 0.2rem; }
+    .secret:hover { color: var(--bg); }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>404</h1>
-    <p>// Page not found. This route doesn't exist.</p>
-    <a href="/">← Return to Home</a><a href="/danica" class="secret">·</a>
-  </div>
+
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+    <div class="container">
+      <a href="/" class="navbar-logo"><img src="/images/CyberUnitLogo_Transparent.png" alt="CyberUnit @ UNG" class="navbar-logo-img"><span class="navbar-logo-text">[ CyberUnit @ UNG ]</span></a>
+      <button class="hamburger" id="hamburger" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="navbar-links" id="navLinks">
+        <li><a href="/">Home</a></li>
+        <li><a href="/resources">Resources</a></li>
+        <li><a href="/about">About</a></li>
+        <li id="authNavItem"></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="page-body">
+    <div class="not-found-section">
+      <div class="not-found-code">404</div>
+      <p class="not-found-msg">// Page not found. This route doesn't exist.</p>
+      <a href="/" class="btn">← Return to Home</a><a href="/danica" class="secret">·</a>
+    </div>
+  </main>
+
+  <footer>
+    CyberUnit @ UNG | Cybersecurity Intro Class | Built with Node.js + Express
+  </footer>
+
+  <script src="/js/main.js"></script>
 </body>
 </html>`;
   const headers = addSecurityHeaders(new Headers({ 'Content-Type': 'text/html; charset=utf-8' }));
