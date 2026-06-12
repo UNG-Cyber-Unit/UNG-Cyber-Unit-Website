@@ -1492,6 +1492,21 @@ async function initAdminPanel() {
   }
 
   let allUsers = [];
+  let sortCol = null;
+  let sortDir = 0; // 0=none, 1=asc, 2=desc
+
+  function getSorted(users) {
+    if (sortDir === 0 || !sortCol) return users;
+    return [...users].sort((a, b) => {
+      let av, bv;
+      if (sortCol === 'username') { av = a.username.toLowerCase(); bv = b.username.toLowerCase(); }
+      else if (sortCol === 'role')    { av = a.role; bv = b.role; }
+      else if (sortCol === 'joined')  { av = new Date(a.created_at); bv = new Date(b.created_at); }
+      if (av < bv) return sortDir === 1 ? -1 : 1;
+      if (av > bv) return sortDir === 1 ? 1 : -1;
+      return 0;
+    });
+  }
 
   async function loadUsers() {
     const wrap = document.getElementById('adminTableWrap');
@@ -1508,22 +1523,28 @@ async function initAdminPanel() {
 
   function renderTable(users) {
     const wrap = document.getElementById('adminTableWrap');
+    const sorted = getSorted(users);
     if (!users.length) {
       wrap.innerHTML = `<p style="color:var(--text-muted);font-family:'Share Tech Mono',monospace;">No users found.</p>`;
       return;
     }
+    const thClass = (col) => {
+      const base = 'sortable';
+      if (sortCol === col) return base + (sortDir === 1 ? ' sort-asc' : ' sort-desc');
+      return base;
+    };
     wrap.innerHTML = `
       <table class="admin-table" role="table" aria-label="User list">
         <thead>
           <tr>
-            <th>Username</th>
-            <th>Role</th>
-            <th>Joined</th>
+            <th class="${thClass('username')}" data-sort="username">Username</th>
+            <th class="${thClass('role')}" data-sort="role">Role</th>
+            <th class="${thClass('joined')}" data-sort="joined">Joined</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          ${users.map(u => {
+          ${sorted.map(u => {
             const isSelf = u.id === currentUser?.id;
             const joined = new Date(u.created_at).toLocaleDateString();
             return `
@@ -1546,6 +1567,20 @@ async function initAdminPanel() {
           }).join('')}
         </tbody>
       </table>`;
+
+    wrap.querySelectorAll('th[data-sort]').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.dataset.sort;
+        if (sortCol === col) {
+          sortDir = sortDir === 1 ? 2 : sortDir === 2 ? 0 : 1;
+          if (sortDir === 0) sortCol = null;
+        } else {
+          sortCol = col;
+          sortDir = 1;
+        }
+        renderTable(filterUsers(document.getElementById('userSearch')?.value ?? ''));
+      });
+    });
 
     wrap.querySelectorAll('.role-select').forEach(sel => {
       sel.addEventListener('change', async () => {

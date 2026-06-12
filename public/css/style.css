@@ -1760,6 +1760,20 @@ footer {
 }
 .admin-table tr:last-child td { border-bottom: none; }
 .admin-table tr:hover td { background: var(--surface); }
+.admin-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+.admin-table th.sortable:hover { color: var(--text); }
+.admin-table th.sortable::after {
+  content: ' ↕';
+  opacity: 0.35;
+  font-size: 0.7em;
+}
+.admin-table th.sort-asc::after  { content: ' ↑'; opacity: 1; color: var(--accent); }
+.admin-table th.sort-desc::after { content: ' ↓'; opacity: 1; color: var(--accent); }
+.admin-table th.sort-asc,
+.admin-table th.sort-desc { color: var(--accent); }
 .role-select {
   background: var(--bg);
   border: 1px solid var(--border);
