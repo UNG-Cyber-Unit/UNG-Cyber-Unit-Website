@@ -918,21 +918,25 @@ function notFoundResponse() {
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 60vh;
+      min-height: calc(100vh - 120px);
       text-align: center;
-      padding: 4rem 1rem;
+      padding: 2rem 1rem;
     }
     .not-found-code {
-      font-size: 7rem;
+      font-size: 9rem;
+      font-weight: 700;
       color: var(--accent);
       line-height: 1;
       font-family: 'Share Tech Mono', monospace;
+      text-shadow: 0 0 24px rgba(0,255,136,0.45), 0 0 6px rgba(0,255,136,0.3);
     }
     .not-found-msg {
-      color: var(--text-muted);
-      margin: 1rem 0 2rem;
-      font-size: 1.1rem;
+      color: var(--accent-dim);
+      margin: 1.25rem 0 2rem;
+      font-size: 1.15rem;
+      font-weight: 600;
       font-family: 'Share Tech Mono', monospace;
+      text-shadow: 0 0 12px rgba(0,204,106,0.3);
     }
     .secret { color: var(--bg); font-size: 0.4rem; text-decoration: none; margin-left: 0.2rem; }
     .secret:hover { color: var(--bg); }
