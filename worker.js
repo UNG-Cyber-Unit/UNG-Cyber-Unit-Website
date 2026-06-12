@@ -1718,16 +1718,21 @@ export default {
       '/about': '/about',
       '/instructor': '/instructor',
       '/admin': '/admin',
+      '/quiz': '/quiz',
     };
 
     // topic/:id — any path matching /topic/<something>
     const topicPageMatch = path.match(/^\/topic\/\w+$/);
+    // quiz/:code — any path matching /quiz/XXXX-XXXX
+    const quizRoomMatch = path.match(/^\/quiz\/[A-Z0-9]{4}-[A-Z0-9]{4}$/i);
 
     let assetPath = null;
     if (viewRoutes[path] !== undefined) {
       assetPath = viewRoutes[path];
     } else if (topicPageMatch) {
       assetPath = '/topic';
+    } else if (quizRoomMatch) {
+      assetPath = '/quiz-room';
     } else if (path === '/sop') {
       assetPath = '/Cyber_Unit_SOP.pdf';
     }

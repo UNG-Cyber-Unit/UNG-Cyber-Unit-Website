@@ -1934,6 +1934,232 @@ async function initInstructorPanel() {
 
 // ─── Init ──────────────────────────────────────────────────────────────────────
 
+// ─── Quiz Entry Page ────────────────────────────────────────────
+function initQuizEntry() {
+  const form    = document.getElementById('quizEntryForm');
+  const input   = document.getElementById('roomCodeInput');
+  const errorEl = document.getElementById('quizEntryError');
+  if (!form || !input) return;
+
+  input.addEventListener('input', () => {
+    const pos = input.selectionStart;
+    input.value = input.value.toUpperCase();
+    input.setSelectionRange(pos, pos);
+    if (errorEl) errorEl.hidden = true;
+  });
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    if (!currentUser) {
+      openAuthModal('login');
+      return;
+    }
+    const raw = input.value.trim().toUpperCase().replace(/\s/g, '');
+    if (!raw) { showEntryError('Please enter a room code.'); return; }
+    let code = raw;
+    if (/^[A-Z0-9]{8}$/.test(code)) code = `${code.slice(0, 4)}-${code.slice(4)}`;
+    if (!/^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code)) {
+      showEntryError('Invalid code format. Expected XXXX-XXXX.');
+      return;
+    }
+    window.location.href = `/quiz/${code}`;
+  });
+
+  function showEntryError(msg) {
+    if (!errorEl) return;
+    errorEl.textContent = msg;
+    errorEl.hidden = false;
+  }
+}
+
+// ─── Quiz Room Page ──────────────────────────────────────────────
+async function initQuizRoom() {
+  const code = window.location.pathname.replace(/^\/quiz\//i, '').toUpperCase();
+  if (!code || !/^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code)) {
+    window.location.replace('/quiz');
+    return;
+  }
+
+  if (!currentUser) {
+    showRoomError('You must be signed in to join a quiz room.');
+    openAuthModal('login');
+    return;
+  }
+
+  showRoomState('loading');
+
+  let data;
+  try {
+    const res = await fetch(`/api/rooms/${code}/join`);
+    data = await res.json();
+    if (!res.ok) { showRoomError(data.error || 'Unable to join room.'); return; }
+  } catch {
+    showRoomError('Failed to load quiz room. Check your connection and try again.');
+    return;
+  }
+
+  document.title = `CyberUnit @ UNG — ${data.room.title}`;
+
+  if (data.alreadyAttempted) {
+    showRoomState('results');
+    renderRoomResults(data.attempt, data.room, true);
+  } else {
+    const titleEl = document.getElementById('roomTitleEl');
+    const codeEl  = document.getElementById('roomCodeEl');
+    if (titleEl) titleEl.textContent = data.room.title;
+    if (codeEl)  codeEl.textContent  = `Code: ${code}`;
+    showRoomState('active');
+    renderRoomQuiz(data.questions, code, data.room);
+  }
+}
+
+function showRoomState(state) {
+  ['Loading', 'Active', 'Results', 'Error'].forEach(s => {
+    const el = document.getElementById(`quizRoom${s}`);
+    if (el) el.hidden = s.toLowerCase() !== state;
+  });
+}
+
+function showRoomError(message) {
+  showRoomState('error');
+  const el = document.getElementById('quizRoomErrorMsg');
+  if (el) el.textContent = message;
+}
+
+function renderRoomQuiz(questions, code, room) {
+  const container = document.getElementById('roomQuizContainer');
+  const submitBtn = document.getElementById('roomSubmitBtn');
+  const progressEl = document.getElementById('roomProgress');
+  const hintEl    = document.getElementById('roomSubmitHint');
+  if (!container || !submitBtn) return;
+
+  const total      = questions.length;
+  const selections = new Array(total).fill(null);
+
+  function updateProgress() {
+    const answered  = selections.filter(s => s !== null).length;
+    const remaining = total - answered;
+    if (progressEl) progressEl.textContent = `${answered} / ${total} answered`;
+    if (hintEl) hintEl.textContent = remaining > 0
+      ? `${remaining} question${remaining !== 1 ? 's' : ''} remaining`
+      : 'All questions answered — ready to submit!';
+    submitBtn.disabled = answered < total;
+  }
+
+  container.innerHTML = questions.map((q, qi) => `
+    <div class="quiz-box" id="rquiz-${qi}">
+      <p class="quiz-question">${qi + 1}. ${escHtml(q.question)}</p>
+      <div class="quiz-options" role="group" aria-label="Answer choices for question ${qi + 1}">
+        ${q.answers.map((ans, ai) => `
+          <button class="quiz-option"
+            data-qi="${qi}" data-ai="${ai}"
+            aria-pressed="false"
+            aria-label="Option ${String.fromCharCode(65 + ai)}: ${escHtml(ans)}">
+            <strong>${String.fromCharCode(65 + ai)})</strong> ${escHtml(ans)}
+          </button>`).join('')}
+      </div>
+    </div>`).join('');
+
+  container.querySelectorAll('.quiz-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const qi = parseInt(btn.dataset.qi, 10);
+      const ai = parseInt(btn.dataset.ai, 10);
+      container.querySelectorAll(`[data-qi="${qi}"].quiz-option`).forEach(b => {
+        b.classList.remove('room-selected');
+        b.setAttribute('aria-pressed', 'false');
+      });
+      btn.classList.add('room-selected');
+      btn.setAttribute('aria-pressed', 'true');
+      selections[qi] = ai;
+      updateProgress();
+    });
+  });
+
+  updateProgress();
+
+  submitBtn.addEventListener('click', async () => {
+    if (selections.some(s => s === null)) return;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+
+    let result;
+    try {
+      const res = await fetch(`/api/rooms/${code}/attempt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers: selections }),
+      });
+      result = await res.json();
+      if (!res.ok) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Quiz';
+        alert(result.error || 'Failed to submit quiz. Please try again.');
+        return;
+      }
+    } catch {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit Quiz';
+      alert('Network error. Your answers were not saved — please try again.');
+      return;
+    }
+
+    showRoomState('results');
+    renderRoomResults(result, room, false);
+  }, { once: true });
+}
+
+function renderRoomResults(attempt, room, wasAlreadyAttempted) {
+  const container = document.getElementById('quizRoomResults');
+  if (!container) return;
+
+  const pct     = Math.round((attempt.score / attempt.total) * 100);
+  const perfect = attempt.score === attempt.total;
+  const passing = attempt.score / attempt.total >= 0.7;
+  const color   = perfect ? 'var(--accent)' : passing ? 'var(--warn)' : 'var(--danger)';
+  const msg     = perfect ? 'Perfect score!' : passing ? 'Good work!' : 'Keep studying!';
+
+  const answerRows = (attempt.answers ?? []).map((a, i) => {
+    const isCorrect = !!a.is_correct;
+    const opts = (a.answers ?? []).map((ans, ai) => {
+      let cls = 'quiz-option';
+      if (ai === a.correct) cls += ' correct';
+      else if (ai === a.selected && !isCorrect) cls += ' wrong';
+      return `<button class="${cls}" disabled aria-label="${escHtml(ans)}">
+        <strong>${String.fromCharCode(65 + ai)})</strong> ${escHtml(ans)}
+      </button>`;
+    }).join('');
+    const feedback = a.explanation
+      ? `<div class="quiz-feedback ${isCorrect ? 'correct' : 'wrong'}" style="display:block;">
+          ${isCorrect
+            ? `✓ Correct! ${escHtml(a.explanation)}`
+            : `✗ Not quite. The answer is <strong>${String.fromCharCode(65 + a.correct)}</strong>. ${escHtml(a.explanation)}`}
+        </div>`
+      : '';
+    return `<div class="quiz-box room-result-box ${isCorrect ? 'result-correct' : 'result-wrong'}">
+      <p class="quiz-question">
+        <span class="result-icon">${isCorrect ? '✓' : '✗'}</span>${i + 1}. ${escHtml(a.question)}
+      </p>
+      <div class="quiz-options" style="pointer-events:none;">${opts}</div>
+      ${feedback}
+    </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <header class="room-results-header">
+      <h1 style="font-family:'Share Tech Mono',monospace;color:var(--accent);font-size:1.3rem;margin:0 0 0.25rem;">// Results</h1>
+      <p style="color:var(--text-muted);font-family:'Share Tech Mono',monospace;font-size:0.82rem;margin:0;">${escHtml(room?.title ?? '')}</p>
+    </header>
+    ${wasAlreadyAttempted ? `<div class="room-already-banner">You already completed this quiz — here's how you did:</div>` : ''}
+    <div class="room-score-card">
+      <div class="room-score-num" style="color:${color};">${attempt.score} / ${attempt.total}</div>
+      <div class="room-score-pct" style="color:${color};">${pct}%</div>
+      <div class="room-score-msg">${msg}</div>
+    </div>
+    ${answerRows}`;
+
+  container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   initHamburger();
   initSmoothScroll();
@@ -1944,6 +2170,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderTopicGrid();
   } else if (window.location.pathname.startsWith('/topic/')) {
     renderTopicPage();
+  } else if (window.location.pathname === '/quiz') {
+    initQuizEntry();
+  } else if (window.location.pathname.startsWith('/quiz/')) {
+    initQuizRoom();
   } else if (window.location.pathname === '/instructor') {
     initInstructorPanel();
   } else if (window.location.pathname === '/admin') {

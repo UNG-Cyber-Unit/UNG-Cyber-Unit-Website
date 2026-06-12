@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberUnit @ UNG — Quiz Room</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- ─── Navbar ──────────────────────────────────────────── -->
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+    <div class="container">
+      <a href="/" class="navbar-logo"><img src="/images/CyberUnitLogo_Transparent.png" alt="CyberUnit @ UNG" class="navbar-logo-img"><span class="navbar-logo-text">[ CyberUnit @ UNG ]</span></a>
+      <button class="hamburger" id="hamburger" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="navbar-links" id="navLinks">
+        <li><a href="/">Home</a></li>
+        <li><a href="/resources">Resources</a></li>
+        <li><a href="/about">About</a></li>
+        <li id="authNavItem"></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="page-body">
+    <div class="container" style="max-width: 800px; padding: 2rem 1rem;">
+
+      <!-- Loading -->
+      <div id="quizRoomLoading" class="room-state-wrap" aria-live="polite">
+        <p style="font-family:'Share Tech Mono',monospace;color:var(--text-muted);">Loading room...</p>
+      </div>
+
+      <!-- Active quiz -->
+      <div id="quizRoomActive" hidden>
+        <header class="room-active-header">
+          <div>
+            <h1 id="roomTitleEl" class="room-title"></h1>
+            <p id="roomCodeEl" class="room-code-display"></p>
+          </div>
+          <p id="roomProgress" class="room-progress" aria-live="polite"></p>
+        </header>
+
+        <div id="roomQuizContainer"></div>
+
+        <div class="room-submit-wrap">
+          <p id="roomSubmitHint" class="room-submit-hint" aria-live="polite"></p>
+          <button class="btn btn-primary" id="roomSubmitBtn" disabled>Submit Quiz</button>
+        </div>
+      </div>
+
+      <!-- Results (populated by JS) -->
+      <div id="quizRoomResults" hidden aria-live="polite"></div>
+
+      <!-- Error -->
+      <div id="quizRoomError" class="room-state-wrap" hidden>
+        <p id="quizRoomErrorMsg" class="room-error-msg" aria-live="assertive"></p>
+        <a href="/quiz" class="btn btn-sm" style="margin-top:1rem;">← Enter a different code</a>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="/js/main.js"></script>
+</body>
+</html>

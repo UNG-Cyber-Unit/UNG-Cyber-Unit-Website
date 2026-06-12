@@ -2067,16 +2067,203 @@ footer {
 }
 .format-code .hl { color: var(--accent); }
 
+/* ─── Quiz Entry Page ───────────────────────────────── */
+
+.quiz-entry-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 4rem 1rem;
+}
+
+.quiz-entry-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 440px;
+}
+
+.quiz-entry-title {
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--accent);
+  font-size: 1.4rem;
+  margin: 0 0 0.4rem;
+}
+
+.quiz-entry-subtitle {
+  color: var(--text-muted);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.82rem;
+  margin: 0 0 1.5rem;
+}
+
+.quiz-entry-input-wrap {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.quiz-entry-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  padding: 0.55rem 0.75rem;
+  text-transform: uppercase;
+  transition: border-color 0.2s;
+}
+.quiz-entry-input:focus { outline: none; border-color: var(--accent); }
+
+.quiz-entry-hint {
+  margin: 0.75rem 0 0;
+  color: var(--text-muted);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.78rem;
+}
+
+/* ─── Quiz Room Page ────────────────────────────────── */
+
+.room-state-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 2rem 0;
+}
+
+.room-error-msg {
+  color: var(--danger);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.9rem;
+}
+
+.room-active-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.room-title {
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--accent);
+  font-size: 1.3rem;
+  margin: 0 0 0.2rem;
+}
+
+.room-code-display {
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin: 0;
+  letter-spacing: 0.06em;
+}
+
+.room-progress {
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* Selected option (pre-submission — no colour feedback yet) */
+.quiz-option.room-selected {
+  border-color: var(--accent);
+  background: rgba(0, 255, 135, 0.07);
+  color: var(--text);
+}
+
+.room-submit-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.room-submit-hint {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Results */
+.room-results-header { margin-bottom: 1.5rem; }
+
+.room-score-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem 1.75rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.room-score-num {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 2rem;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.room-score-pct {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.1rem;
+}
+
+.room-score-msg {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.room-result-box { border-left: 3px solid var(--border); }
+.room-result-box.result-correct { border-left-color: var(--accent); }
+.room-result-box.result-wrong   { border-left-color: var(--danger); }
+
+.result-icon { margin-right: 0.3rem; }
+.room-result-box.result-correct .result-icon { color: var(--accent); }
+.room-result-box.result-wrong   .result-icon { color: var(--danger); }
+
+.room-already-banner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.65rem 1rem;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 1.25rem;
+}
+
 /* Responsive */
 @media (max-width: 680px) {
   .instructor-form-grid { grid-template-columns: 1fr; }
   .results-summary-grid { grid-template-columns: repeat(3, 1fr); }
   .room-actions { gap: 0.3rem; }
   .format-guide-body { grid-template-columns: 1fr; }
+  .room-active-header { flex-direction: column; }
 }
 
 @media (max-width: 480px) {
   .results-summary-grid { grid-template-columns: 1fr; }
   .answer-row { grid-template-columns: 20px 1fr; }
   .answer-choice { grid-column: 2; }
+  .quiz-entry-input-wrap { flex-direction: column; }
+  .room-score-card { gap: 0.75rem; }
 }
