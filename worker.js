@@ -1037,6 +1037,90 @@ async function requireRole(request, env, minRole) {
   return session;
 }
 
+// ─── Quiz Room Helpers ────────────────────────────────────────────────────────
+
+function generateRoomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const r = () => chars[Math.floor(Math.random() * chars.length)];
+  return `${r()}${r()}${r()}${r()}-${r()}${r()}${r()}${r()}`;
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
+      else if (ch === '"') { inQuotes = false; }
+      else { current += ch; }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      result.push(current.trim()); current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return { error: 'CSV must have a header row and at least one question' };
+  const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim());
+  for (const req of ['question', 'answer_a', 'answer_b', 'correct']) {
+    if (!headers.includes(req)) return { error: `Missing required CSV column: ${req}` };
+  }
+  const get = (row, col) => { const i = headers.indexOf(col); return i >= 0 ? (row[i] ?? '') : ''; };
+  const questions = [];
+  for (let r = 1; r < lines.length; r++) {
+    if (!lines[r].trim()) continue;
+    const row = parseCSVLine(lines[r]);
+    const question = get(row, 'question');
+    if (!question) continue;
+    const answers = ['answer_a', 'answer_b', 'answer_c', 'answer_d']
+      .map(col => get(row, col)).filter(a => a !== '');
+    if (answers.length < 2) return { error: `Row ${r}: need at least 2 non-empty answers` };
+    const correct = parseInt(get(row, 'correct'), 10);
+    if (isNaN(correct) || correct < 0 || correct >= answers.length) {
+      return { error: `Row ${r}: "correct" must be 0–${answers.length - 1}` };
+    }
+    questions.push({ question, answers, correct, explanation: get(row, 'explanation') });
+  }
+  if (questions.length === 0) return { error: 'No valid questions found in CSV' };
+  if (questions.length > 100) return { error: 'Maximum 100 questions per room' };
+  return { questions };
+}
+
+function validateJSONQuestions(raw) {
+  if (!Array.isArray(raw)) return { error: 'JSON must be an array of question objects' };
+  if (raw.length === 0) return { error: 'At least one question is required' };
+  if (raw.length > 100) return { error: 'Maximum 100 questions per room' };
+  const questions = [];
+  for (let i = 0; i < raw.length; i++) {
+    const q = raw[i];
+    if (typeof q.question !== 'string' || !q.question.trim()) {
+      return { error: `Question ${i + 1}: question text is required` };
+    }
+    if (!Array.isArray(q.answers) || q.answers.length < 2 || q.answers.length > 4) {
+      return { error: `Question ${i + 1}: must have 2–4 answers` };
+    }
+    const answers = q.answers.map(a => String(a).trim());
+    if (answers.some(a => !a)) return { error: `Question ${i + 1}: answer text cannot be empty` };
+    if (typeof q.correct !== 'number' || q.correct < 0 || q.correct >= answers.length) {
+      return { error: `Question ${i + 1}: correct must be 0–${answers.length - 1}` };
+    }
+    questions.push({
+      question: q.question.trim(), answers, correct: q.correct,
+      explanation: typeof q.explanation === 'string' ? q.explanation : '',
+    });
+  }
+  return { questions };
+}
+
 // ─── Worker Entry Point ───────────────────────────────────────────────────────
 
 export default {
@@ -1190,12 +1274,414 @@ export default {
       if (adminUserMatch && request.method === 'DELETE') {
         const targetId = parseInt(adminUserMatch[1], 10);
         if (targetId === session.sub) return jsonResponse({ error: 'Cannot delete your own account' }, 403);
-        await env.DB.batch([
-          env.DB.prepare('DELETE FROM quiz_results WHERE user_id = ?').bind(targetId),
-          env.DB.prepare('DELETE FROM users WHERE id = ?').bind(targetId),
-        ]);
+        // Cascade room attempt answers before deleting attempts
+        const { results: userAttempts } = await env.DB.prepare(
+          'SELECT id FROM quiz_room_attempts WHERE user_id = ?'
+        ).bind(targetId).all();
+        const stmts = (userAttempts ?? []).map(a =>
+          env.DB.prepare('DELETE FROM quiz_room_answers WHERE attempt_id = ?').bind(a.id)
+        );
+        stmts.push(env.DB.prepare('DELETE FROM quiz_room_attempts WHERE user_id = ?').bind(targetId));
+        stmts.push(env.DB.prepare('DELETE FROM quiz_results WHERE user_id = ?').bind(targetId));
+        stmts.push(env.DB.prepare('DELETE FROM users WHERE id = ?').bind(targetId));
+        await env.DB.batch(stmts);
         return jsonResponse({ ok: true });
       }
+    }
+
+    // ── Quiz Rooms API ───────────────────────────────────────────────────────
+    if (path.startsWith('/api/rooms')) {
+      if (!env.JWT_SECRET || !env.DB) return jsonResponse({ error: 'Server not configured' }, 503);
+
+      // POST /api/rooms — instructor creates a room
+      if (path === '/api/rooms' && request.method === 'POST') {
+        const session = await requireRole(request, env, 'instructor');
+        if (session instanceof Response) return session;
+
+        let formData;
+        try { formData = await request.formData(); } catch { return jsonResponse({ error: 'Expected multipart/form-data' }, 400); }
+
+        const title = (formData.get('title') ?? '').trim();
+        if (!title) return jsonResponse({ error: 'Room title is required' }, 400);
+
+        const expiresRaw = formData.get('expires_at');
+        let expiresAt = null;
+        if (expiresRaw) {
+          const d = new Date(expiresRaw);
+          if (isNaN(d.getTime())) return jsonResponse({ error: 'Invalid expires_at date' }, 400);
+          expiresAt = Math.floor(d.getTime() / 1000);
+        }
+
+        const file = formData.get('file');
+        if (!file || typeof file.text !== 'function') return jsonResponse({ error: 'No file uploaded' }, 400);
+
+        const text = await file.text();
+        const filename = (file.name ?? '').toLowerCase();
+        let parseResult;
+        if (filename.endsWith('.json')) {
+          try { parseResult = validateJSONQuestions(JSON.parse(text)); }
+          catch { return jsonResponse({ error: 'Invalid JSON file' }, 400); }
+        } else {
+          parseResult = parseCSV(text);
+        }
+        if (!parseResult) return jsonResponse({ error: 'Could not parse file' }, 400);
+        if (parseResult.error) return jsonResponse({ error: parseResult.error }, 400);
+
+        const { questions } = parseResult;
+
+        // Generate a unique room code (collision retry)
+        let code;
+        for (let attempt = 0; attempt < 10; attempt++) {
+          const candidate = generateRoomCode();
+          const existing = await env.DB.prepare('SELECT id FROM quiz_rooms WHERE code = ?').bind(candidate).first();
+          if (!existing) { code = candidate; break; }
+        }
+        if (!code) return jsonResponse({ error: 'Failed to generate unique room code, try again' }, 500);
+
+        const roomResult = await env.DB.prepare(
+          'INSERT INTO quiz_rooms (code, title, created_by, expires_at, status, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+        ).bind(code, title, session.sub, expiresAt, 'open', Date.now()).run();
+
+        const roomId = roomResult.meta.last_row_id;
+        await env.DB.batch(questions.map((q, i) =>
+          env.DB.prepare(
+            'INSERT INTO quiz_room_questions (room_id, sort_order, question, answers, correct, explanation) VALUES (?, ?, ?, ?, ?, ?)'
+          ).bind(roomId, i, q.question, JSON.stringify(q.answers), q.correct, q.explanation)
+        ));
+
+        return jsonResponse({ code, title, questionCount: questions.length }, 201);
+      }
+
+      // GET /api/rooms — instructor lists their rooms
+      if (path === '/api/rooms' && request.method === 'GET') {
+        const session = await requireRole(request, env, 'instructor');
+        if (session instanceof Response) return session;
+
+        // Admins can pass ?all=1 to see all rooms
+        const showAll = session.role === 'admin' && url.searchParams.get('all') === '1';
+        const query = showAll
+          ? `SELECT r.id, r.code, r.title, r.status, r.expires_at, r.created_at,
+                    COUNT(DISTINCT q.id) AS question_count,
+                    COUNT(DISTINCT a.id) AS attempt_count
+             FROM quiz_rooms r
+             LEFT JOIN quiz_room_questions q ON q.room_id = r.id
+             LEFT JOIN quiz_room_attempts a ON a.room_id = r.id
+             GROUP BY r.id ORDER BY r.created_at DESC`
+          : `SELECT r.id, r.code, r.title, r.status, r.expires_at, r.created_at,
+                    COUNT(DISTINCT q.id) AS question_count,
+                    COUNT(DISTINCT a.id) AS attempt_count
+             FROM quiz_rooms r
+             LEFT JOIN quiz_room_questions q ON q.room_id = r.id
+             LEFT JOIN quiz_room_attempts a ON a.room_id = r.id
+             WHERE r.created_by = ?
+             GROUP BY r.id ORDER BY r.created_at DESC`;
+
+        const stmt = showAll
+          ? env.DB.prepare(query)
+          : env.DB.prepare(query).bind(session.sub);
+        const { results } = await stmt.all();
+        return jsonResponse({ results: results ?? [] });
+      }
+
+      // Routes with a room code: /api/rooms/:code[/subpath]
+      const roomCodeMatch = path.match(/^\/api\/rooms\/([A-Z0-9]{4}-[A-Z0-9]{4})(\/[a-z-]*)?$/);
+      if (roomCodeMatch) {
+        const code = roomCodeMatch[1];
+        const subpath = roomCodeMatch[2] ?? '';
+
+        // GET /api/rooms/:code/join — student joins a room
+        if (subpath === '/join' && request.method === 'GET') {
+          const session = await requireRole(request, env, 'member');
+          if (session instanceof Response) return session;
+
+          const room = await env.DB.prepare(
+            'SELECT id, code, title, status, expires_at FROM quiz_rooms WHERE code = ?'
+          ).bind(code).first();
+          if (!room) return jsonResponse({ error: 'Room not found' }, 404);
+          if (room.status === 'closed') return jsonResponse({ error: 'This room is closed' }, 403);
+          if (room.expires_at && Date.now() / 1000 > room.expires_at) {
+            return jsonResponse({ error: 'This room has expired' }, 403);
+          }
+
+          // Check for existing attempt
+          const attempt = await env.DB.prepare(
+            'SELECT id, score, total, completed_at FROM quiz_room_attempts WHERE room_id = ? AND user_id = ?'
+          ).bind(room.id, session.sub).first();
+
+          if (attempt) {
+            const { results: ansRows } = await env.DB.prepare(`
+              SELECT a.question_id, a.selected, a.is_correct,
+                     q.question, q.answers, q.correct, q.explanation, q.sort_order
+              FROM quiz_room_answers a
+              JOIN quiz_room_questions q ON q.id = a.question_id
+              WHERE a.attempt_id = ?
+              ORDER BY q.sort_order
+            `).bind(attempt.id).all();
+            return jsonResponse({
+              room: { code: room.code, title: room.title },
+              alreadyAttempted: true,
+              attempt: {
+                score: attempt.score, total: attempt.total, completed_at: attempt.completed_at,
+                answers: (ansRows ?? []).map(a => ({
+                  question_id: a.question_id, question: a.question,
+                  answers: JSON.parse(a.answers), correct: a.correct,
+                  selected: a.selected, is_correct: a.is_correct, explanation: a.explanation,
+                })),
+              },
+            });
+          }
+
+          // Return questions without correct answers
+          const { results: questions } = await env.DB.prepare(
+            'SELECT id, sort_order, question, answers FROM quiz_room_questions WHERE room_id = ? ORDER BY sort_order'
+          ).bind(room.id).all();
+          return jsonResponse({
+            room: { code: room.code, title: room.title },
+            alreadyAttempted: false,
+            questions: (questions ?? []).map(q => ({
+              id: q.id, sort_order: q.sort_order,
+              question: q.question, answers: JSON.parse(q.answers),
+            })),
+          });
+        }
+
+        // GET /api/rooms/:code/my-attempt — student checks their result
+        if (subpath === '/my-attempt' && request.method === 'GET') {
+          const session = await requireRole(request, env, 'member');
+          if (session instanceof Response) return session;
+
+          const room = await env.DB.prepare('SELECT id FROM quiz_rooms WHERE code = ?').bind(code).first();
+          if (!room) return jsonResponse({ error: 'Room not found' }, 404);
+
+          const attempt = await env.DB.prepare(
+            'SELECT id, score, total, completed_at FROM quiz_room_attempts WHERE room_id = ? AND user_id = ?'
+          ).bind(room.id, session.sub).first();
+          if (!attempt) return jsonResponse({ attempt: null });
+
+          const { results: ansRows } = await env.DB.prepare(`
+            SELECT a.question_id, a.selected, a.is_correct,
+                   q.question, q.answers, q.correct, q.explanation, q.sort_order
+            FROM quiz_room_answers a
+            JOIN quiz_room_questions q ON q.id = a.question_id
+            WHERE a.attempt_id = ?
+            ORDER BY q.sort_order
+          `).bind(attempt.id).all();
+          return jsonResponse({
+            attempt: {
+              score: attempt.score, total: attempt.total, completed_at: attempt.completed_at,
+              answers: (ansRows ?? []).map(a => ({
+                question_id: a.question_id, question: a.question,
+                answers: JSON.parse(a.answers), correct: a.correct,
+                selected: a.selected, is_correct: a.is_correct, explanation: a.explanation,
+              })),
+            },
+          });
+        }
+
+        // POST /api/rooms/:code/attempt — student submits their answers
+        if (subpath === '/attempt' && request.method === 'POST') {
+          const session = await requireRole(request, env, 'member');
+          if (session instanceof Response) return session;
+
+          const room = await env.DB.prepare(
+            'SELECT id, code, title, status, expires_at FROM quiz_rooms WHERE code = ?'
+          ).bind(code).first();
+          if (!room) return jsonResponse({ error: 'Room not found' }, 404);
+          if (room.status === 'closed') return jsonResponse({ error: 'This room is closed' }, 403);
+          if (room.expires_at && Date.now() / 1000 > room.expires_at) {
+            return jsonResponse({ error: 'This room has expired' }, 403);
+          }
+
+          const existing = await env.DB.prepare(
+            'SELECT id FROM quiz_room_attempts WHERE room_id = ? AND user_id = ?'
+          ).bind(room.id, session.sub).first();
+          if (existing) return jsonResponse({ error: 'You have already submitted this quiz' }, 409);
+
+          let body;
+          try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request body' }, 400); }
+          const { answers } = body ?? {};
+          if (!Array.isArray(answers)) return jsonResponse({ error: 'answers must be an array' }, 400);
+
+          const { results: questions } = await env.DB.prepare(
+            'SELECT id, correct FROM quiz_room_questions WHERE room_id = ? ORDER BY sort_order'
+          ).bind(room.id).all();
+
+          if (answers.length !== questions.length) {
+            return jsonResponse({ error: `Expected ${questions.length} answers, got ${answers.length}` }, 400);
+          }
+          for (let i = 0; i < answers.length; i++) {
+            if (typeof answers[i] !== 'number' || answers[i] < 0) {
+              return jsonResponse({ error: `Answer at index ${i} is invalid` }, 400);
+            }
+          }
+
+          const scored = questions.map((q, i) => ({
+            question_id: q.id, selected: answers[i],
+            is_correct: answers[i] === q.correct ? 1 : 0,
+          }));
+          const score = scored.reduce((sum, s) => sum + s.is_correct, 0);
+          const completedAt = Date.now();
+
+          const attemptResult = await env.DB.prepare(
+            'INSERT INTO quiz_room_attempts (room_id, user_id, score, total, completed_at) VALUES (?, ?, ?, ?, ?)'
+          ).bind(room.id, session.sub, score, questions.length, completedAt).run();
+
+          await env.DB.batch(scored.map(s =>
+            env.DB.prepare(
+              'INSERT INTO quiz_room_answers (attempt_id, question_id, selected, is_correct) VALUES (?, ?, ?, ?)'
+            ).bind(attemptResult.meta.last_row_id, s.question_id, s.selected, s.is_correct)
+          ));
+
+          // Return full results (correct answers now revealed)
+          const { results: fullQs } = await env.DB.prepare(
+            'SELECT id, sort_order, question, answers, correct, explanation FROM quiz_room_questions WHERE room_id = ? ORDER BY sort_order'
+          ).bind(room.id).all();
+
+          return jsonResponse({
+            score, total: questions.length, completed_at: completedAt,
+            answers: fullQs.map((q, i) => ({
+              question_id: q.id, question: q.question,
+              answers: JSON.parse(q.answers), correct: q.correct,
+              selected: scored[i].selected, is_correct: scored[i].is_correct,
+              explanation: q.explanation,
+            })),
+          }, 201);
+        }
+
+        // GET /api/rooms/:code/results — instructor views attempt roster
+        if (subpath === '/results' && request.method === 'GET') {
+          const session = await requireRole(request, env, 'instructor');
+          if (session instanceof Response) return session;
+
+          const room = await env.DB.prepare(
+            'SELECT id, code, title, status, created_by FROM quiz_rooms WHERE code = ?'
+          ).bind(code).first();
+          if (!room) return jsonResponse({ error: 'Room not found' }, 404);
+          if (room.created_by !== session.sub && session.role !== 'admin') {
+            return jsonResponse({ error: 'Forbidden' }, 403);
+          }
+
+          const { results: attempts } = await env.DB.prepare(`
+            SELECT a.id, a.score, a.total, a.completed_at, u.username
+            FROM quiz_room_attempts a
+            JOIN users u ON u.id = a.user_id
+            WHERE a.room_id = ?
+            ORDER BY a.completed_at DESC
+          `).bind(room.id).all();
+
+          const { results: questions } = await env.DB.prepare(
+            'SELECT id, sort_order, question, answers, correct, explanation FROM quiz_room_questions WHERE room_id = ? ORDER BY sort_order'
+          ).bind(room.id).all();
+
+          const detailedAttempts = await Promise.all((attempts ?? []).map(async att => {
+            const { results: ansRows } = await env.DB.prepare(
+              'SELECT question_id, selected, is_correct FROM quiz_room_answers WHERE attempt_id = ?'
+            ).bind(att.id).all();
+            return { ...att, answers: ansRows ?? [] };
+          }));
+
+          return jsonResponse({
+            room: { code: room.code, title: room.title, status: room.status },
+            questions: (questions ?? []).map(q => ({
+              id: q.id, sort_order: q.sort_order, question: q.question,
+              answers: JSON.parse(q.answers), correct: q.correct, explanation: q.explanation,
+            })),
+            attempts: detailedAttempts,
+          });
+        }
+
+        // GET /api/rooms/:code — instructor views room detail
+        if (subpath === '' && request.method === 'GET') {
+          const session = await requireRole(request, env, 'instructor');
+          if (session instanceof Response) return session;
+
+          const room = await env.DB.prepare(
+            'SELECT id, code, title, status, expires_at, created_at, created_by FROM quiz_rooms WHERE code = ?'
+          ).bind(code).first();
+          if (!room) return jsonResponse({ error: 'Room not found' }, 404);
+          if (room.created_by !== session.sub && session.role !== 'admin') {
+            return jsonResponse({ error: 'Forbidden' }, 403);
+          }
+
+          const { results: questions } = await env.DB.prepare(
+            'SELECT id, sort_order, question, answers, correct, explanation FROM quiz_room_questions WHERE room_id = ? ORDER BY sort_order'
+          ).bind(room.id).all();
+
+          return jsonResponse({
+            room: {
+              id: room.id, code: room.code, title: room.title,
+              status: room.status, expires_at: room.expires_at, created_at: room.created_at,
+            },
+            questions: (questions ?? []).map(q => ({
+              id: q.id, sort_order: q.sort_order, question: q.question,
+              answers: JSON.parse(q.answers), correct: q.correct, explanation: q.explanation,
+            })),
+          });
+        }
+
+        // PATCH /api/rooms/:code — instructor updates status or expiry
+        if (subpath === '' && request.method === 'PATCH') {
+          const session = await requireRole(request, env, 'instructor');
+          if (session instanceof Response) return session;
+
+          const room = await env.DB.prepare('SELECT id, created_by FROM quiz_rooms WHERE code = ?').bind(code).first();
+          if (!room) return jsonResponse({ error: 'Room not found' }, 404);
+          if (room.created_by !== session.sub && session.role !== 'admin') {
+            return jsonResponse({ error: 'Forbidden' }, 403);
+          }
+
+          let body;
+          try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request body' }, 400); }
+          const { status, expires_at } = body ?? {};
+
+          const updates = []; const params = [];
+          if (status !== undefined) {
+            if (!['open', 'closed'].includes(status)) return jsonResponse({ error: 'status must be "open" or "closed"' }, 400);
+            updates.push('status = ?'); params.push(status);
+          }
+          if (expires_at !== undefined) {
+            if (expires_at === null) {
+              updates.push('expires_at = NULL');
+            } else {
+              const d = new Date(expires_at);
+              if (isNaN(d.getTime())) return jsonResponse({ error: 'Invalid expires_at date' }, 400);
+              updates.push('expires_at = ?'); params.push(Math.floor(d.getTime() / 1000));
+            }
+          }
+          if (updates.length === 0) return jsonResponse({ error: 'Nothing to update' }, 400);
+          params.push(room.id);
+          await env.DB.prepare(`UPDATE quiz_rooms SET ${updates.join(', ')} WHERE id = ?`).bind(...params).run();
+          return jsonResponse({ ok: true });
+        }
+
+        // DELETE /api/rooms/:code — instructor deletes room + all data
+        if (subpath === '' && request.method === 'DELETE') {
+          const session = await requireRole(request, env, 'instructor');
+          if (session instanceof Response) return session;
+
+          const room = await env.DB.prepare('SELECT id, created_by FROM quiz_rooms WHERE code = ?').bind(code).first();
+          if (!room) return jsonResponse({ error: 'Room not found' }, 404);
+          if (room.created_by !== session.sub && session.role !== 'admin') {
+            return jsonResponse({ error: 'Forbidden' }, 403);
+          }
+
+          // Cascade: answers → attempts → questions → room
+          const { results: attemptRows } = await env.DB.prepare(
+            'SELECT id FROM quiz_room_attempts WHERE room_id = ?'
+          ).bind(room.id).all();
+
+          const stmts = (attemptRows ?? []).map(a =>
+            env.DB.prepare('DELETE FROM quiz_room_answers WHERE attempt_id = ?').bind(a.id)
+          );
+          stmts.push(env.DB.prepare('DELETE FROM quiz_room_attempts WHERE room_id = ?').bind(room.id));
+          stmts.push(env.DB.prepare('DELETE FROM quiz_room_questions WHERE room_id = ?').bind(room.id));
+          stmts.push(env.DB.prepare('DELETE FROM quiz_rooms WHERE id = ?').bind(room.id));
+          await env.DB.batch(stmts);
+          return jsonResponse({ ok: true });
+        }
+      }
+
+      return jsonResponse({ error: 'Not found' }, 404);
     }
 
     // ── API: list all topics (summary only) ──────────────────────────────────

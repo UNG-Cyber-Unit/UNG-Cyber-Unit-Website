@@ -265,7 +265,7 @@ question,answer_a,answer_b,answer_c,answer_d,correct,explanation
 1. **Phase 1** — Role system ✅ complete
 2. **Phase 6** — Admin user management ✅ complete
 3. **Phase 2** — DB schema ✅ complete
-4. **Phase 3** — Backend endpoints (instructor + student APIs)
+4. **Phase 3** — Backend endpoints ✅ complete
 5. **Phase 4** — Instructor panel UI
 6. **Phase 5** — Student quiz room UI
 
