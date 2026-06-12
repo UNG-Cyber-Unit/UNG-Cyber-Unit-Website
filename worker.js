@@ -913,30 +913,31 @@ function notFoundResponse() {
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="/css/style.css">
   <style>
+    .page-body { padding-top: 0; }
     .not-found-section {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: calc(100vh - 120px);
+      width: 100%;
+      min-height: calc(100vh - 56px - 48px);
       text-align: center;
       padding: 2rem 1rem;
+      box-sizing: border-box;
     }
     .not-found-code {
-      font-size: 9rem;
-      font-weight: 700;
+      font-size: clamp(5rem, 18vw, 10rem);
       color: var(--accent);
       line-height: 1;
       font-family: 'Share Tech Mono', monospace;
-      text-shadow: 0 0 24px rgba(0,255,136,0.45), 0 0 6px rgba(0,255,136,0.3);
+      text-shadow: 0 0 40px rgba(0,255,136,0.6), 0 0 12px rgba(0,255,136,0.4);
     }
     .not-found-msg {
-      color: var(--accent-dim);
+      color: var(--accent);
       margin: 1.25rem 0 2rem;
-      font-size: 1.15rem;
-      font-weight: 600;
+      font-size: clamp(1rem, 2.5vw, 1.3rem);
       font-family: 'Share Tech Mono', monospace;
-      text-shadow: 0 0 12px rgba(0,204,106,0.3);
+      text-shadow: 0 0 16px rgba(0,255,136,0.4);
     }
     .secret { color: var(--bg); font-size: 0.4rem; text-decoration: none; margin-left: 0.2rem; }
     .secret:hover { color: var(--bg); }
