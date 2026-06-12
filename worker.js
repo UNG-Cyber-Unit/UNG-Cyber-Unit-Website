@@ -1735,6 +1735,10 @@ export default {
       assetPath = '/quiz-room';
     } else if (path === '/sop') {
       assetPath = '/Cyber_Unit_SOP.pdf';
+    } else if (path === '/danica') {
+      return new Response('I love you! <3', {
+        headers: addSecurityHeaders(new Headers({ 'Content-Type': 'text/plain; charset=utf-8' })),
+      });
     }
 
     if (assetPath !== null) {
