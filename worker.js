@@ -885,7 +885,9 @@ function addSecurityHeaders(headers) {
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('X-Frame-Options', 'DENY');
   headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=(), usb=()');
+  headers.set('Strict-Transport-Security', 'max-age=300; includeSubDomains');
+  headers.set('Cross-Origin-Resource-Policy', 'same-origin');
   headers.set(
     'Content-Security-Policy',
     [
@@ -895,6 +897,9 @@ function addSecurityHeaders(headers) {
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data:",
       "connect-src 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "frame-src 'none'",
       "frame-ancestors 'none'",
     ].join('; ')
   );
