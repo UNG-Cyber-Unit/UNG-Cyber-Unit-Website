@@ -892,8 +892,8 @@ function addSecurityHeaders(headers) {
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self'",
-      "style-src 'self' https://fonts.googleapis.com",
+      "script-src 'self' https://static.cloudflareinsights.com 'sha256-t13YZ72gTAAItZ4sH5go2SnbQfqOSYQNqUAYiZ6+tR4='",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data:",
       "connect-src 'self'",
