@@ -1,6 +1,8 @@
 /* TEAM */
+  Creator:      HexagonalJustice
+  Signature:    Attack, Defend, Exploit.
   Organization: CyberUnit @ UNG
-  Location: Dahlonega, Georgia, USA
+  Location:     Dahlonega, Georgia, USA
 
 /* THANKS */
   Cloudflare - for the Workers platform and edge network
