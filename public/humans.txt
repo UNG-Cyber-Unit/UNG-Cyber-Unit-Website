@@ -1,15 +1,14 @@
-/* TEAM */
+  /* TEAM */
   Creator:      HexagonalJustice
-  Signature:    Attack, Defend, Exploit.
   Organization: CyberUnit @ UNG
   Location:     Dahlonega, Georgia, USA
 
-/* THANKS */
+  /* THANKS */
   Cloudflare - for the Workers platform and edge network
   MDN HTTP Observatory - for the security audit tooling
   The CTF community - for teaching us everything we know
 
-/* TECHNOLOGY COLOPHON */
+  /* TECHNOLOGY COLOPHON */
   Runtime:    Cloudflare Workers
   Storage:    Cloudflare D1 (SQLite)
   Assets:     Cloudflare Workers Static Assets
@@ -17,9 +16,11 @@
   Frontend:   Vanilla JS - no frameworks were harmed in the making of this site
   Deployment: GitHub Actions -> wrangler deploy
 
-/* YOU FOUND IT */
+  /* YOU FOUND IT */
   Most people check robots.txt.
   You checked humans.txt.
   That makes you one of us.
 
   If you're into cybersecurity and you're at UNG, come find us.
+
+  // Attack, Defend, Exploit.
