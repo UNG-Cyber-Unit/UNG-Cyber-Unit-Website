@@ -1,7 +1,6 @@
 /* TEAM */
   Organization: CyberUnit @ UNG
   Location: Dahlonega, Georgia, USA
-  Twitter: @UNGCyberUnit
 
 /* THANKS */
   Cloudflare - for the Workers platform and edge network
