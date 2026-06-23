@@ -892,7 +892,7 @@ function addSecurityHeaders(headers) {
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self' https://static.cloudflareinsights.com 'sha256-t13YZ72gTAAItZ4sH5go2SnbQfqOSYQNqUAYiZ6+tR4=' 'sha256-UccztOemEGGN8zk1FUSRq5UI85T9EupSEWrfdH1e96E=' 'sha256-WCkzXH3sfx2x9VtAf2efgYED+gnn9vi0WweaM8QrcAc=' 'sha256-1/+6EkpZCV9fp8Frp2nXI05Jxd18IVLpgnBAhNbhKj4='",
+      "script-src 'self' https://static.cloudflareinsights.com 'sha256-t13YZ72gTAAItZ4sH5go2SnbQfqOSYQNqUAYiZ6+tR4=' 'sha256-UccztOemEGGN8zk1FUSRq5UI85T9EupSEWrfdH1e96E=' 'sha256-WCkzXH3sfx2x9VtAf2efgYED+gnn9vi0WweaM8QrcAc=' 'sha256-1/+6EkpZCV9fp8Frp2nXI05Jxd18IVLpgnBAhNbhKj4=' 'sha256-birbty7wB+6ZvhVpwBnfzb0V2E9az4f08OYXr76dL8U='",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data:",
