@@ -470,7 +470,7 @@
 
             <div class="org-node xo-toggle" id="xoToggle" role="button" tabindex="0" aria-expanded="false" aria-controls="staffPanel">
               <div class="node-icon">🏅</div>
-              <div class="node-title">Operations Officer<span class="xo-caret">▾</span></div>
+              <div class="node-title">Executive Officer<span class="xo-caret">▾</span></div>
               <div class="node-abbr">XO — Executive Officer</div>
             </div>
 
@@ -491,12 +491,12 @@
             </div>
             <div class="org-node">
               <div class="node-icon">🔍</div>
-              <div class="node-title">Intelligence</div>
+              <div class="node-title">Risk Mitigation</div>
               <div class="node-abbr">S-2</div>
             </div>
             <div class="org-node">
               <div class="node-icon">📋</div>
-              <div class="node-title">Training</div>
+              <div class="node-title">Operations</div>
               <div class="node-abbr">S-3</div>
             </div>
             <div class="org-node">
@@ -511,33 +511,37 @@
             </div>
           </div>
 
-          <!-- Tier 3: NCOIC -->
+          <!-- Tier 3: 1SG -->
           <div class="org-level">
             <div class="org-node" style="min-width:180px;">
               <div class="node-icon">🪖</div>
-              <div class="node-title">1st Sergeant</div>
-              <div class="node-abbr">NCOIC</div>
+              <div class="node-title">First Sergeant</div>
+              <div class="node-abbr">1SG</div>
             </div>
           </div>
 
           <!-- Tier 4: Element Leaders -->
           <div class="org-level" style="gap:1rem;">
-            <div class="org-node" style="min-width:140px;">
-              <div class="node-icon">🔷</div>
-              <div class="node-title">Element Leader</div>
-              <div class="node-abbr">Element A</div>
-            </div>
-            <div class="org-node" style="min-width:140px;">
-              <div class="node-icon">🔷</div>
-              <div class="node-title">Element Leader</div>
-              <div class="node-abbr">Element B</div>
-            </div>
-            <div class="org-node" style="min-width:140px; border-color:rgba(68,136,255,0.35);">
+            <div class="org-node" style="min-width:140px; border-color:rgba(68,136,255,0.4);">
               <div class="node-icon">🔵</div>
-              <div class="node-title" style="color:#4488ff;">Blue Team Captain</div>
-              <div class="node-abbr">Advanced Element</div>
+              <div class="node-title" style="color:#4488ff;">Element Leader</div>
+              <div class="node-abbr">Blue — Junior</div>
+            </div>
+            <div class="org-node" style="min-width:140px; border-color:rgba(255,80,80,0.4);">
+              <div class="node-icon">🔴</div>
+              <div class="node-title" style="color:#ff5050;">Element Leader</div>
+              <div class="node-abbr">Red — Senior</div>
+            </div>
+            <div class="org-node" style="min-width:140px; border-color:rgba(170,80,255,0.4);">
+              <div class="node-icon">🟣</div>
+              <div class="node-title" style="color:#aa50ff;">Element Leader</div>
+              <div class="node-abbr">Purple — Competition</div>
             </div>
           </div>
+
+          <p style="color:var(--text-muted); font-size:0.78rem; margin-top:1rem; font-style:italic;">
+            * Element color schemes are stylistic only — all elements interface with blue, red, and purple team concepts regardless of assignment.
+          </p>
 
         </div><!-- /org-chart -->
       </div>
@@ -571,26 +575,6 @@
             </div>
           </div>
 
-          <!-- XO -->
-          <div class="role-card">
-            <div class="role-card-header">
-              <span class="role-icon">🏅</span>
-              <div>
-                <div class="role-title">Operations Officer (XO) <span class="chain-badge">#3 in command</span></div>
-                <div class="role-abbr">Executive Officer</div>
-              </div>
-            </div>
-            <div class="role-desc">
-              <p>Second person in the chain of command; assumes OIC responsibilities in the OIC's absence. Principal staff officer of the unit.</p>
-              <ul>
-                <li>Plans and executes all competitions the unit competes in or hosts</li>
-                <li>Works with the OIC and CyberHawks to plan events</li>
-                <li>Can assume duties of S-1 through S-5 when positions are unfilled</li>
-                <li>Serves as the Civil Military Operations Officer (CMO) for outside contacts</li>
-              </ul>
-            </div>
-          </div>
-
           <!-- DTL -->
           <div class="role-card">
             <div class="role-card-header">
@@ -605,19 +589,39 @@
               <ul>
                 <li>Coordinates operations with the Cyber Institute and CyberHawks</li>
                 <li>Responsible for civilian accountability at all practices and events</li>
-                <li>Assumes NCOIC duties if the NCOIC is absent</li>
-                <li>Ensures training continuity when OIC/XO/NCOIC are unavailable</li>
+                <li>Assumes 1SG duties if the 1SG is absent</li>
+                <li>Ensures training continuity when OIC/XO/1SG are unavailable</li>
               </ul>
             </div>
           </div>
 
-          <!-- NCOIC -->
+          <!-- XO -->
+          <div class="role-card">
+            <div class="role-card-header">
+              <span class="role-icon">🏅</span>
+              <div>
+                <div class="role-title">Executive Officer (XO) <span class="chain-badge">#3 in command</span></div>
+                <div class="role-abbr">Executive Officer</div>
+              </div>
+            </div>
+            <div class="role-desc">
+              <p>Second person in the chain of command; assumes OIC responsibilities in the OIC's absence. Principal staff officer of the unit.</p>
+              <ul>
+                <li>Plans and executes all competitions the unit competes in or hosts</li>
+                <li>Works with the OIC and CyberHawks to plan events</li>
+                <li>Can assume duties of S-1 through S-5 when positions are unfilled</li>
+                <li>Serves as the Civil Military Operations Officer (CMO) for outside contacts</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- 1SG -->
           <div class="role-card">
             <div class="role-card-header">
               <span class="role-icon">🪖</span>
               <div>
-                <div class="role-title">1st Sergeant (NCOIC) <span class="chain-badge">#4 in command</span></div>
-                <div class="role-abbr">Non-Commissioned Officer in Charge</div>
+                <div class="role-title">First Sergeant <span class="chain-badge">#4 in command</span></div>
+                <div class="role-abbr">1SG — First Sergeant</div>
               </div>
             </div>
             <div class="role-desc">
@@ -632,45 +636,6 @@
             </div>
           </div>
 
-          <!-- S-3 -->
-          <div class="role-card">
-            <div class="role-card-header">
-              <span class="role-icon">📋</span>
-              <div>
-                <div class="role-title">Training Officer</div>
-                <div class="role-abbr">S-3 — Assistant Executive Officer</div>
-              </div>
-            </div>
-            <div class="role-desc">
-              <p>Creates OPORDs, CONOPs, and training schedules in coordination with the OIC, XO, NCOIC, and DTL.</p>
-              <ul>
-                <li>Builds the semester training schedule</li>
-                <li>Ensures all training aligns with the Unit's plan and Advisor's goals</li>
-                <li>Assists the XO in planning all competitions and events</li>
-                <li>Assumes principal staff officer role in the XO's absence</li>
-              </ul>
-            </div>
-          </div>
-
-          <!-- S-5 -->
-          <div class="role-card">
-            <div class="role-card-header">
-              <span class="role-icon">📢</span>
-              <div>
-                <div class="role-title">Public Affairs Officer</div>
-                <div class="role-abbr">S-5 — Media Management</div>
-              </div>
-            </div>
-            <div class="role-desc">
-              <p>Manages all official Cyber Unit social media accounts (Instagram, Discord channels) and handles public-facing communications.</p>
-              <ul>
-                <li>Creates and distributes tryout and recruitment posters</li>
-                <li>Plans and executes fundraising events in coordination with the XO</li>
-                <li>Ensures performance requests originate through the MLC Operations Center</li>
-              </ul>
-            </div>
-          </div>
-
           <!-- Element Leaders -->
           <div class="role-card">
             <div class="role-card-header">
@@ -681,28 +646,28 @@
               </div>
             </div>
             <div class="role-desc">
-              <p>Responsible for the training and discipline of their individual element. Elected by the NCOIC and OIC.</p>
+              <p>Responsible for the training and discipline of their individual element. Elected by the 1SG and OIC.</p>
               <ul>
-                <li>Coordinate with NCOIC to mentor and guide subordinates</li>
+                <li>Coordinate with 1SG to mentor and guide subordinates</li>
                 <li>Follow or create element training schedules</li>
-                <li>Document subordinate progress and report to NCOIC</li>
-                <li>Take place of NCOIC when he/she is absent</li>
+                <li>Document subordinate progress and report to 1SG</li>
+                <li>Take place of 1SG when he/she is absent</li>
                 <li>May conduct scheduled uniform and equipment inspections</li>
               </ul>
             </div>
           </div>
 
-          <!-- Blue Team Captain -->
-          <div class="role-card" style="border-color:rgba(68,136,255,0.25);">
+          <!-- Purple Element Leader -->
+          <div class="role-card" style="border-color:rgba(170,80,255,0.25);">
             <div class="role-card-header">
-              <span class="role-icon">🔵</span>
+              <span class="role-icon">🟣</span>
               <div>
-                <div class="role-title" style="color:#4488ff;">Blue Team Captain</div>
-                <div class="role-abbr">Advanced Training Element</div>
+                <div class="role-title" style="color:#aa50ff;">Purple Element Leader</div>
+                <div class="role-abbr">Competition Element — Junior + Senior mix</div>
               </div>
             </div>
             <div class="role-desc">
-              <p>An advanced training element leader who operates within a separate sub-element designated as the Blue Team. Functions as an Element Leader within a dedicated advanced-skills environment.</p>
+              <p>Leads the competition-focused element, which can draw from both junior (Blue) and senior (Red) members. Functions as an Element Leader within a dedicated competition-prep environment.</p>
             </div>
           </div>
 
@@ -721,7 +686,7 @@
           <li>Maintain a minimum GPA of 2.5 or higher</li>
           <li>Participate regularly in Cyber Unit training</li>
           <li>Remain in good standing with the University</li>
-          <li>Submit absence requests to the NCOIC or OIC at least 2 days prior</li>
+          <li>Submit absence requests to the 1SG or OIC at least 2 days prior</li>
           <li>Uphold the UNG Honor Code and Anti-Hazing Policy</li>
           <li>Complete a C.I.P.H.E.R project to advance in rank</li>
         </ul>
@@ -733,7 +698,7 @@
             cyber-related challenges, team building exercises, and a C.I.P.H.E.R project. Successful
             completion designates a member as a <strong style="color:var(--text);">"Tech."</strong>
             Completion of two C.I.P.H.E.R projects promotes a Tech to an <strong style="color:var(--text);">Architect</strong>
-            (gold lightning patch). Leadership positions (OIC, XO, DTL, NCOIC, Element Leads) are
+            (gold lightning patch). Leadership positions (OIC, XO, DTL, 1SG, Element Leads) are
             distinguished by wearing the full golden Cyber patch.
           </p>
         </div>
