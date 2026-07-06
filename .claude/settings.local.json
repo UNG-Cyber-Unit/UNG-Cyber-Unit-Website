@@ -21,7 +21,15 @@
       "Bash(python3 *)",
       "Bash(curl -s http://localhost:8788/)",
       "Bash(curl -s http://localhost:8788/topic/01)",
-      "Bash(curl -s http://localhost:8788/js/main.js)"
+      "Bash(curl -s http://localhost:8788/js/main.js)",
+      "Bash(wrangler d1 *)",
+      "Bash(xargs ls -la)",
+      "Bash(gh run *)",
+      "Bash(wrangler dev *)",
+      "Bash(curl -sI http://localhost:8788/)",
+      "Bash(curl *)",
+      "Bash(grep -v \"^--$\")",
+      "mcp__plugin_cloudflare_cloudflare-api__execute"
     ]
   }
 }
