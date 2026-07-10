@@ -1278,24 +1278,26 @@ function updateAuthNav() {
   }
 }
 
-async function handleLogout() {
-  await fetch('/api/auth/logout', { method: 'POST' });
-  currentUser = null;
-  updateAuthNav();
-  window.location.reload();
+function handleLogout() {
+  confirmDialog('Sign out of your account?', async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    currentUser = null;
+    updateAuthNav();
+    window.location.reload();
+  }, 'Sign Out', { danger: false });
 }
 
-function confirmDialog(message, onConfirm, confirmLabel = 'Confirm') {
+function confirmDialog(message, onConfirm, confirmLabel = 'Confirm', { danger = true } = {}) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay confirm-overlay';
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
   overlay.innerHTML = `
-    <div class="modal confirm-modal">
+    <div class="modal confirm-modal${danger ? '' : ' confirm-modal--neutral'}">
       <p class="confirm-message">${escHtml(message)}</p>
       <div class="confirm-actions">
         <button class="btn" id="confirmCancel">Cancel</button>
-        <button class="btn btn-danger" id="confirmOk">${escHtml(confirmLabel)}</button>
+        <button class="btn${danger ? ' btn-danger' : ''}" id="confirmOk">${escHtml(confirmLabel)}</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);

@@ -1641,6 +1641,9 @@ footer {
   max-width: 340px;
   border-color: var(--danger);
 }
+.confirm-modal--neutral {
+  border-color: var(--border);
+}
 .confirm-message {
   font-family: 'Share Tech Mono', monospace;
   font-size: 0.9rem;
