@@ -96,11 +96,24 @@
       flex-shrink: 0;
     }
     .partner-card h3 {
-      color: var(--accent);
       font-size: 0.85rem;
       letter-spacing: 0.1em;
       text-transform: uppercase;
       margin-bottom: 0.5rem;
+    }
+    .partner-title-link {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .partner-title-link:hover {
+      text-decoration: underline;
+    }
+    .partner-logo-link {
+      flex-shrink: 0;
+      transition: opacity 0.2s;
+    }
+    .partner-logo-link:hover {
+      opacity: 0.85;
     }
     .partner-card p {
       color: var(--text-muted);
@@ -334,7 +347,8 @@
       padding: 1.1rem 1.4rem;
       text-decoration: none;
       color: inherit;
-      max-width: 520px;
+      flex: 1 1 300px;
+      max-width: 420px;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
     .doc-link:hover {
@@ -741,9 +755,11 @@
       <div class="container">
         <h2 class="section-heading"><span>//</span> Sister Organization</h2>
         <div class="partner-card">
-          <img src="/images/cyberhawks_logo.svg" alt="CyberHawks Logo" class="partner-logo">
+          <a href="https://cyberhawks.org" target="_blank" rel="noopener" class="partner-logo-link">
+            <img src="/images/cyberhawks_logo.svg" alt="CyberHawks Logo" class="partner-logo">
+          </a>
           <div>
-            <h3>CyberHawks — UNG Cybersecurity Club</h3>
+            <h3><a href="https://cyberhawks.org" target="_blank" rel="noopener" class="partner-title-link">CyberHawks — UNG Cybersecurity Club</a></h3>
             <p>
               The CyberHawks are UNG's civilian-focused cybersecurity club, open to all enrolled students.
               Where the Cyber Unit operates within the ROTC Boar's Head Brigade, the CyberHawks train and
@@ -760,7 +776,7 @@
     <section class="about-section" aria-label="Documents">
       <div class="container">
         <h2 class="section-heading"><span>//</span> Documents</h2>
-        <div style="margin-top:1.25rem; display:flex; flex-direction:column; gap:0.9rem;">
+        <div style="margin-top:1.25rem; display:flex; flex-wrap:wrap; gap:0.9rem;">
           <a href="/sop" target="_blank" rel="noopener" class="doc-link">
             <span class="doc-icon">📄</span>
             <div class="doc-info">
