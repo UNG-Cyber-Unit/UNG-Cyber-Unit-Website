@@ -80,6 +80,37 @@
       line-height: 1.7;
     }
 
+    .partner-card {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+    }
+    .partner-card img.partner-logo {
+      width: 90px;
+      height: auto;
+      flex-shrink: 0;
+    }
+    .partner-card h3 {
+      color: var(--accent);
+      font-size: 0.85rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+    .partner-card p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
+    @media (max-width: 640px) {
+      .partner-card { flex-direction: column; text-align: center; }
+    }
+
     .mission-statement {
       background: linear-gradient(135deg, #0d1a0d, #141414);
       border: 1px solid rgba(0,255,136,0.2);
@@ -705,16 +736,44 @@
       </div>
     </section>
 
+    <!-- ─── Sister Organization ───────────────────────────────── -->
+    <section class="about-section" aria-label="Sister Organization">
+      <div class="container">
+        <h2 class="section-heading"><span>//</span> Sister Organization</h2>
+        <div class="partner-card">
+          <img src="/images/cyberhawks_logo.svg" alt="CyberHawks Logo" class="partner-logo">
+          <div>
+            <h3>CyberHawks — UNG Cybersecurity Club</h3>
+            <p>
+              The CyberHawks are UNG's civilian-focused cybersecurity club, open to all enrolled students.
+              Where the Cyber Unit operates within the ROTC Boar's Head Brigade, the CyberHawks train and
+              mentor students of all year groups to compete in national cyber competitions — fielding
+              Red and Blue Team squads (HackHawks) and hosting their own annual capture-the-flag event,
+              the Goldrush Gauntlet.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ─── Documents ───────────────────────────────────────── -->
     <section class="about-section" aria-label="Documents">
       <div class="container">
         <h2 class="section-heading"><span>//</span> Documents</h2>
-        <div style="margin-top:1.25rem;">
+        <div style="margin-top:1.25rem; display:flex; flex-direction:column; gap:0.9rem;">
           <a href="/sop" target="_blank" rel="noopener" class="doc-link">
             <span class="doc-icon">📄</span>
             <div class="doc-info">
               <span class="doc-title">Cyber Unit Standard Operating Procedures</span>
               <span class="doc-meta">July 2024 · PDF · UNG Boar's Head Brigade</span>
+            </div>
+            <span class="doc-arrow">↗</span>
+          </a>
+          <a href="https://cyberhawks.org/assets/documents/CyberHawks_Constitution.pdf" target="_blank" rel="noopener" class="doc-link">
+            <span class="doc-icon">📄</span>
+            <div class="doc-info">
+              <span class="doc-title">CyberHawks Constitution</span>
+              <span class="doc-meta">March 2026 · PDF · UNG Cybersecurity Club</span>
             </div>
             <span class="doc-arrow">↗</span>
           </a>
