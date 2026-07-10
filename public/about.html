@@ -401,6 +401,7 @@
         <!-- <li><a href="/#topics">Topics</a></li> -->
         <li><a href="/resources">Resources</a></li>
         <li><a href="/about" class="active" aria-current="page">About</a></li>
+        <li id="authNavItem"></li>
       </ul>
     </div>
   </nav>
@@ -804,15 +805,8 @@
     CyberUnit @ UNG | University of North Georgia · Boar's Head Brigade | SOP July 2024
   </footer>
 
+  <script src="/js/main.js"></script>
   <script>
-    // Hamburger menu
-    const hamburger = document.getElementById('hamburger');
-    const navLinks  = document.getElementById('navLinks');
-    hamburger.addEventListener('click', () => {
-      const open = navLinks.classList.toggle('open');
-      hamburger.setAttribute('aria-expanded', open);
-    });
-
     // XO staff panel toggle
     const xoToggle   = document.getElementById('xoToggle');
     const staffPanel = document.getElementById('staffPanel');
