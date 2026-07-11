@@ -1676,6 +1676,127 @@ async function initInstructorPanel() {
   document.getElementById('exportCsvBtn')?.addEventListener('click', exportResultsCSV);
   document.getElementById('createRoomForm')?.addEventListener('submit', handleCreateRoom);
 
+  // ── Question source mode toggle ──
+  const manualBuilderWrap = document.getElementById('manualBuilderWrap');
+  const fileImportWrap = document.getElementById('fileImportWrap');
+  document.getElementById('questionSourceMode')?.addEventListener('change', e => {
+    const isManual = e.target.value === 'manual';
+    manualBuilderWrap.hidden = !isManual;
+    fileImportWrap.hidden = isManual;
+  });
+
+  // ── Manual quiz builder ──
+  const ANSWER_LETTERS = ['A', 'B', 'C', 'D'];
+  const manualList = document.getElementById('manualQuestionsList');
+  let qCounter = 0;
+
+  function createAnswerRow() {
+    const row = document.createElement('div');
+    row.className = 'quiz-answer-row';
+    row.innerHTML = `
+      <input type="radio" class="quiz-answer-correct" aria-label="Mark as correct answer">
+      <input type="text" class="quiz-answer-text" maxlength="200">
+      <button type="button" class="quiz-answer-remove" aria-label="Remove answer">✕</button>`;
+    return row;
+  }
+
+  function relabelCard(card) {
+    const qid = card.dataset.qid;
+    const rows = [...card.querySelectorAll('.quiz-answer-row')];
+    rows.forEach((row, i) => {
+      row.querySelector('.quiz-answer-correct').name = `correct-${qid}`;
+      row.querySelector('.quiz-answer-text').placeholder = `Answer ${ANSWER_LETTERS[i] ?? i + 1}`;
+    });
+    const addBtn = card.querySelector('.quiz-add-answer');
+    if (addBtn) addBtn.disabled = rows.length >= 4;
+    card.querySelectorAll('.quiz-answer-remove').forEach(btn => { btn.disabled = rows.length <= 2; });
+  }
+
+  function renumberQuestions() {
+    manualList.querySelectorAll('.quiz-card').forEach((card, i) => {
+      card.querySelector('.quiz-card-index').textContent = `Question ${i + 1}`;
+    });
+    manualList.querySelectorAll('.quiz-card-remove').forEach(btn => {
+      btn.disabled = manualList.children.length <= 1;
+    });
+  }
+
+  function addQuestionCard() {
+    const qid = ++qCounter;
+    const card = document.createElement('div');
+    card.className = 'quiz-card';
+    card.dataset.qid = qid;
+    card.innerHTML = `
+      <div class="quiz-card-header">
+        <span class="quiz-card-index">Question</span>
+        <button type="button" class="quiz-card-remove" aria-label="Remove question">✕</button>
+      </div>
+      <div class="form-group">
+        <label>Question Text</label>
+        <textarea class="quiz-q-text" rows="2" placeholder="e.g. What does CIA stand for?"></textarea>
+      </div>
+      <div class="quiz-answers"></div>
+      <button type="button" class="btn btn-sm quiz-add-answer">+ Add Answer</button>
+      <div class="form-group" style="margin-top:0.75rem;">
+        <label>Explanation <span class="form-hint">optional</span></label>
+        <textarea class="quiz-q-explanation" rows="2" placeholder="Shown to student after they answer"></textarea>
+      </div>`;
+    const answersWrap = card.querySelector('.quiz-answers');
+    answersWrap.appendChild(createAnswerRow());
+    answersWrap.appendChild(createAnswerRow());
+    manualList.appendChild(card);
+    relabelCard(card);
+    renumberQuestions();
+    card.querySelector('.quiz-q-text').focus();
+  }
+
+  document.getElementById('addQuestionBtn')?.addEventListener('click', addQuestionCard);
+
+  manualList?.addEventListener('click', e => {
+    const card = e.target.closest('.quiz-card');
+    if (!card) return;
+    if (e.target.closest('.quiz-card-remove')) {
+      if (manualList.children.length <= 1) return;
+      card.remove();
+      renumberQuestions();
+    } else if (e.target.closest('.quiz-add-answer')) {
+      const answersWrap = card.querySelector('.quiz-answers');
+      if (answersWrap.children.length >= 4) return;
+      answersWrap.appendChild(createAnswerRow());
+      relabelCard(card);
+    } else if (e.target.closest('.quiz-answer-remove')) {
+      const answersWrap = card.querySelector('.quiz-answers');
+      if (answersWrap.children.length <= 2) return;
+      e.target.closest('.quiz-answer-row').remove();
+      relabelCard(card);
+    }
+  });
+
+  // Seed with one empty question to start
+  if (manualList && !manualList.children.length) addQuestionCard();
+
+  function gatherManualQuestions() {
+    const cards = [...manualList.querySelectorAll('.quiz-card')];
+    const questions = [];
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
+      const question = card.querySelector('.quiz-q-text').value.trim();
+      if (!question) return { error: `Question ${i + 1}: question text is required` };
+
+      const rows = [...card.querySelectorAll('.quiz-answer-row')];
+      const answers = rows.map(r => r.querySelector('.quiz-answer-text').value.trim());
+      if (answers.some(a => !a)) return { error: `Question ${i + 1}: answer text cannot be empty` };
+
+      const correct = rows.findIndex(r => r.querySelector('.quiz-answer-correct').checked);
+      if (correct === -1) return { error: `Question ${i + 1}: select which answer is correct` };
+
+      const explanation = card.querySelector('.quiz-q-explanation').value.trim();
+      questions.push({ question, answers, correct, explanation });
+    }
+    if (!questions.length) return { error: 'Add at least one question' };
+    return { questions };
+  }
+
   await loadRooms();
 
   async function handleCreateRoom(e) {
@@ -1686,16 +1807,25 @@ async function initInstructorPanel() {
     successEl.hidden = true;
 
     const title = document.getElementById('roomTitle').value.trim();
+    const mode = document.getElementById('questionSourceMode').value;
     const fileInput = document.getElementById('roomFile');
     const expiry = document.getElementById('roomExpiry').value;
 
     if (!title) { errEl.textContent = 'Room title is required.'; errEl.hidden = false; return; }
-    if (!fileInput.files.length) { errEl.textContent = 'Please select a .csv or .json question file.'; errEl.hidden = false; return; }
 
     const fd = new FormData();
     fd.append('title', title);
-    fd.append('file', fileInput.files[0]);
     if (expiry) fd.append('expires_at', new Date(expiry).toISOString());
+
+    if (mode === 'manual') {
+      const result = gatherManualQuestions();
+      if (result.error) { errEl.textContent = result.error; errEl.hidden = false; return; }
+      const blob = new Blob([JSON.stringify(result.questions)], { type: 'application/json' });
+      fd.append('file', blob, 'manual-questions.json');
+    } else {
+      if (!fileInput.files.length) { errEl.textContent = 'Please select a .csv or .json question file.'; errEl.hidden = false; return; }
+      fd.append('file', fileInput.files[0]);
+    }
 
     const submitBtn = e.target.querySelector('[type="submit"]');
     submitBtn.disabled = true;
@@ -1710,6 +1840,10 @@ async function initInstructorPanel() {
       successEl.hidden = false;
       e.target.reset();
       document.getElementById('fileInputText').textContent = 'Choose .csv or .json file...';
+      manualBuilderWrap.hidden = false;
+      fileImportWrap.hidden = true;
+      manualList.innerHTML = '';
+      addQuestionCard();
       await loadRooms();
     } catch {
       errEl.textContent = 'Network error. Please try again.';

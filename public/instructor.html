@@ -48,7 +48,22 @@
               <input type="text" id="roomTitle" placeholder="e.g. Cyber Unit Promotion Board — Spring 2026" autocomplete="off">
             </div>
 
-            <div class="form-group">
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label for="questionSourceMode">Questions</label>
+              <select id="questionSourceMode">
+                <option value="manual" selected>Build Manually</option>
+                <option value="file">Import from File (.csv / .json)</option>
+              </select>
+            </div>
+
+            <!-- Manual quiz builder -->
+            <div id="manualBuilderWrap" style="grid-column: 1 / -1;">
+              <div id="manualQuestionsList"></div>
+              <button type="button" class="btn btn-sm" id="addQuestionBtn">+ Add Question</button>
+            </div>
+
+            <!-- File import (hidden unless "Import from File" selected) -->
+            <div class="form-group" id="fileImportWrap" style="grid-column: 1 / -1;" hidden>
               <label for="roomFile">Question File <span class="form-hint">.csv or .json</span></label>
               <div class="file-input-wrap">
                 <input type="file" id="roomFile" accept=".csv,.json" class="file-input-hidden" aria-label="Upload CSV or JSON question file">
@@ -57,59 +72,48 @@
                   <span id="fileInputText">Choose .csv or .json file...</span>
                 </label>
               </div>
-            </div>
 
-            <div class="form-group">
-              <label for="roomExpiry">Expiry Date/Time <span class="form-hint">optional — leave blank for no expiry</span></label>
-              <input type="datetime-local" id="roomExpiry">
-            </div>
-          </div>
+              <!-- Format guide -->
+              <details class="format-guide">
+                <summary class="format-guide-summary">
+                  📄 File Format Guide
+                  <span class="format-guide-arrow">▼</span>
+                </summary>
+                <div class="format-guide-body">
 
-          <p class="form-error" id="createRoomError" aria-live="polite" hidden></p>
-          <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Create Room</button>
-        </form>
-
-        <!-- Format guide -->
-        <details class="format-guide">
-          <summary class="format-guide-summary">
-            📄 File Format Guide
-            <span class="format-guide-arrow">▼</span>
-          </summary>
-          <div class="format-guide-body">
-
-            <!-- CSV -->
-            <div>
-              <p class="format-tab-heading">CSV Format</p>
-              <table class="format-col-table" aria-label="CSV column reference">
-                <thead>
-                  <tr><th>Column</th><th>Required?</th><th>Notes</th></tr>
-                </thead>
-                <tbody>
-                  <tr><td>question</td>  <td><span class="req">required</span></td><td>Question text</td></tr>
-                  <tr><td>answer_a</td>  <td><span class="req">required</span></td><td>First answer choice</td></tr>
-                  <tr><td>answer_b</td>  <td><span class="req">required</span></td><td>Second answer choice</td></tr>
-                  <tr><td>answer_c</td>  <td><span class="opt">optional</span></td><td>Third choice — leave blank if unused</td></tr>
-                  <tr><td>answer_d</td>  <td><span class="opt">optional</span></td><td>Fourth choice — leave blank if unused</td></tr>
-                  <tr><td>correct</td>   <td><span class="req">required</span></td><td>0-indexed — 0=A, 1=B, 2=C, 3=D</td></tr>
-                  <tr><td>explanation</td><td><span class="opt">optional</span></td><td>Shown to student after submit</td></tr>
-                </tbody>
-              </table>
-              <pre class="format-code"><span class="hl">question,answer_a,answer_b,answer_c,answer_d,correct,explanation</span>
+                  <!-- CSV -->
+                  <div>
+                    <p class="format-tab-heading">CSV Format</p>
+                    <table class="format-col-table" aria-label="CSV column reference">
+                      <thead>
+                        <tr><th>Column</th><th>Required?</th><th>Notes</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr><td>question</td>  <td><span class="req">required</span></td><td>Question text</td></tr>
+                        <tr><td>answer_a</td>  <td><span class="req">required</span></td><td>First answer choice</td></tr>
+                        <tr><td>answer_b</td>  <td><span class="req">required</span></td><td>Second answer choice</td></tr>
+                        <tr><td>answer_c</td>  <td><span class="opt">optional</span></td><td>Third choice — leave blank if unused</td></tr>
+                        <tr><td>answer_d</td>  <td><span class="opt">optional</span></td><td>Fourth choice — leave blank if unused</td></tr>
+                        <tr><td>correct</td>   <td><span class="req">required</span></td><td>0-indexed — 0=A, 1=B, 2=C, 3=D</td></tr>
+                        <tr><td>explanation</td><td><span class="opt">optional</span></td><td>Shown to student after submit</td></tr>
+                      </tbody>
+                    </table>
+                    <pre class="format-code"><span class="hl">question,answer_a,answer_b,answer_c,answer_d,correct,explanation</span>
 "What does CIA stand for?","Confidentiality Integrity Availability","Central Intelligence Agency","Cyber Intrusion Analysis","Classified Information Access",0,"The CIA Triad is the foundation of cybersecurity."
 "True or False: Reusing passwords is safe.","True","False",,,1,"Reusing passwords means one breach exposes all accounts."
 "What does a firewall do?","Speeds up internet","Blocks unauthorized traffic","Deletes viruses",,1,"A firewall monitors and controls network traffic based on rules."</pre>
-              <p style="color:var(--text-muted);font-size:0.78rem;margin-top:0.5rem;font-family:'Share Tech Mono',monospace;">
-                Tip: build in Excel or Google Sheets, then export as <strong>CSV UTF-8</strong>.
-              </p>
-            </div>
+                    <p style="color:var(--text-muted);font-size:0.78rem;margin-top:0.5rem;font-family:'Share Tech Mono',monospace;">
+                      Tip: build in Excel or Google Sheets, then export as <strong>CSV UTF-8</strong>.
+                    </p>
+                  </div>
 
-            <!-- JSON -->
-            <div>
-              <p class="format-tab-heading">JSON Format</p>
-              <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:0.75rem;">
-                An array of question objects. <code>answers</code> is a list of 2–4 strings; <code>correct</code> is the 0-based index of the right answer.
-              </p>
-              <pre class="format-code">[
+                  <!-- JSON -->
+                  <div>
+                    <p class="format-tab-heading">JSON Format</p>
+                    <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:0.75rem;">
+                      An array of question objects. <code>answers</code> is a list of 2–4 strings; <code>correct</code> is the 0-based index of the right answer.
+                    </p>
+                    <pre class="format-code">[
   {
     <span class="hl">"question"</span>: "What does CIA stand for?",
     <span class="hl">"answers"</span>: [
@@ -127,13 +131,24 @@
     <span class="hl">"explanation"</span>: "Reusing passwords means one breach exposes all accounts."
   }
 ]</pre>
-              <p style="color:var(--text-muted);font-size:0.78rem;margin-top:0.5rem;font-family:'Share Tech Mono',monospace;">
-                <code>explanation</code> is optional. Save the file as <strong>.json</strong>.
-              </p>
+                    <p style="color:var(--text-muted);font-size:0.78rem;margin-top:0.5rem;font-family:'Share Tech Mono',monospace;">
+                      <code>explanation</code> is optional. Save the file as <strong>.json</strong>.
+                    </p>
+                  </div>
+
+                </div>
+              </details>
             </div>
 
+            <div class="form-group">
+              <label for="roomExpiry">Expiry Date/Time <span class="form-hint">optional — leave blank for no expiry</span></label>
+              <input type="datetime-local" id="roomExpiry">
+            </div>
           </div>
-        </details>
+
+          <p class="form-error" id="createRoomError" aria-live="polite" hidden></p>
+          <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Create Room</button>
+        </form>
 
         <!-- Success banner (hidden until a room is successfully created) -->
         <div id="createRoomSuccess" class="room-created-banner" hidden>
