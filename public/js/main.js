@@ -2112,7 +2112,10 @@ async function initInstructorPanel() {
         <td style="font-family:'Share Tech Mono',monospace;">${escHtml(att.username)}</td>
         <td><span style="font-family:'Share Tech Mono',monospace;color:${scoreColor};">${att.score}/${att.total} (${pct}%)</span>${pendingBadge}</td>
         <td style="color:var(--text-muted);font-size:0.85rem;">${new Date(att.completed_at).toLocaleString()}</td>
-        <td><button class="btn btn-sm btn-danger reset-attempt-btn" data-attempt-id="${att.id}" data-username="${escHtml(att.username)}">Reset Attempt</button></td>`;
+        <td class="room-actions">
+          <button class="btn btn-sm review-answers-btn" data-attempt-id="${att.id}">Review Answers</button>
+          <button class="btn btn-sm btn-danger reset-attempt-btn" data-attempt-id="${att.id}" data-username="${escHtml(att.username)}">Reset Attempt</button>
+        </td>`;
 
       const detailRow = document.createElement('tr');
       detailRow.className = 'answer-detail-row';
@@ -2154,12 +2157,22 @@ async function initInstructorPanel() {
           </div>
         </td>`;
 
-      row.querySelector('.expand-btn').addEventListener('click', e => {
-        const expanded = e.target.getAttribute('aria-expanded') === 'true';
+      const expandBtn = row.querySelector('.expand-btn');
+      function showDetail() {
+        detailRow.hidden = false;
+        expandBtn.setAttribute('aria-expanded', 'true');
+        expandBtn.textContent = '▼';
+        detailRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      expandBtn.addEventListener('click', () => {
+        const expanded = expandBtn.getAttribute('aria-expanded') === 'true';
         detailRow.hidden = expanded;
-        e.target.setAttribute('aria-expanded', String(!expanded));
-        e.target.textContent = expanded ? '▶' : '▼';
+        expandBtn.setAttribute('aria-expanded', String(!expanded));
+        expandBtn.textContent = expanded ? '▶' : '▼';
       });
+
+      row.querySelector('.review-answers-btn').addEventListener('click', showDetail);
 
       row.querySelector('.reset-attempt-btn').addEventListener('click', () => {
         confirmDialog(`Reset ${att.username}'s attempt? They'll be able to retake this quiz.`, async () => {
