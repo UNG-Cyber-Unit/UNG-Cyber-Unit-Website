@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CyberUnit @ UNG — Quiz Room</title>
+  <title>CyberUnit @ UNG — Join Classroom</title>
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="/css/style.css">
 </head>
@@ -20,36 +20,68 @@
         <li><a href="/">Home</a></li>
         <li><a href="/resources">Resources</a></li>
         <li><a href="/about">About</a></li>
+        <li><a href="/quiz" class="active" aria-current="page">Join Classroom</a></li>
         <li id="authNavItem"></li>
       </ul>
     </div>
   </nav>
 
   <main class="page-body">
-    <div class="quiz-entry-container">
-      <div class="quiz-entry-card">
-        <h1 class="quiz-entry-title">// Quiz Room</h1>
-        <p class="quiz-entry-subtitle">Enter your room code to begin</p>
+    <div class="container" style="max-width: 960px; padding: 2rem 1rem;">
 
-        <form id="quizEntryForm" novalidate>
-          <div class="quiz-entry-input-wrap">
-            <input
-              type="text"
-              id="roomCodeInput"
-              class="quiz-entry-input"
-              placeholder="XXXX-XXXX"
-              maxlength="9"
-              autocomplete="off"
-              autocapitalize="characters"
-              spellcheck="false"
-              aria-label="Room code">
-            <button type="submit" class="btn btn-primary">Enter Room</button>
-          </div>
-          <p class="form-error" id="quizEntryError" aria-live="polite" hidden></p>
-        </form>
+      <header style="margin-bottom: 2rem;">
+        <h1 style="font-family: 'Share Tech Mono', monospace; color: var(--accent); font-size: 1.6rem; margin: 0 0 0.25rem;">
+          // Join Classroom
+        </h1>
+        <p style="color: var(--text-muted); font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; margin: 0;">
+          Join a public quiz room below, or enter a private room code
+        </p>
+      </header>
 
-        <p class="quiz-entry-hint">Ask your instructor for the room code</p>
+      <!-- Shown when not signed in -->
+      <div id="loginGate" class="login-gate" hidden>
+        <p style="font-size:2rem;margin-bottom:0.75rem;">🔒</p>
+        <p style="margin-bottom:1.25rem;">Sign in to view public quiz rooms and join with a code.</p>
+        <button class="btn btn-primary" id="loginGateBtn">Sign In</button>
       </div>
+
+      <!-- Shown when signed in -->
+      <div id="joinContent" hidden>
+
+        <!-- ─── Public Rooms ───────────────────────────────── -->
+        <section class="instructor-section">
+          <h2 class="instructor-section-heading">// Public Rooms</h2>
+          <div id="publicRoomsWrap">
+            <p style="color: var(--text-muted); font-family: 'Share Tech Mono', monospace;">Loading rooms...</p>
+          </div>
+        </section>
+
+        <!-- ─── Private Room Code ──────────────────────────── -->
+        <section class="instructor-section">
+          <h2 class="instructor-section-heading">// Have a Room Code?</h2>
+          <div class="quiz-entry-card" style="margin-top: 0; max-width: 480px;">
+            <form id="quizEntryForm" novalidate>
+              <div class="quiz-entry-input-wrap">
+                <input
+                  type="text"
+                  id="roomCodeInput"
+                  class="quiz-entry-input"
+                  placeholder="XXXX-XXXX"
+                  maxlength="9"
+                  autocomplete="off"
+                  autocapitalize="characters"
+                  spellcheck="false"
+                  aria-label="Room code">
+                <button type="submit" class="btn btn-primary">Enter Room</button>
+              </div>
+              <p class="form-error" id="quizEntryError" aria-live="polite" hidden></p>
+            </form>
+            <p class="quiz-entry-hint">Ask your instructor for the room code</p>
+          </div>
+        </section>
+
+      </div>
+
     </div>
   </main>
 

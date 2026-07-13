@@ -20,6 +20,7 @@
         <li><a href="/">Home</a></li>
         <li><a href="/resources">Resources</a></li>
         <li><a href="/about">About</a></li>
+        <li><a href="/quiz">Join Classroom</a></li>
         <li id="authNavItem"></li>
       </ul>
     </div>
@@ -143,6 +144,14 @@
             <div class="form-group">
               <label for="roomExpiry">Expiry Date/Time <span class="form-hint">optional — leave blank for no expiry</span></label>
               <input type="datetime-local" id="roomExpiry">
+            </div>
+
+            <div class="form-group">
+              <label for="roomVisibility">Visibility</label>
+              <select id="roomVisibility">
+                <option value="private" selected>Private — join by code only</option>
+                <option value="public">Public — listed on Join Classroom page</option>
+              </select>
             </div>
           </div>
 

@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS quiz_rooms (
   created_by  INTEGER NOT NULL,
   expires_at  INTEGER,
   status      TEXT    NOT NULL DEFAULT 'open',
+  visibility  TEXT    NOT NULL DEFAULT 'private',
   created_at  INTEGER NOT NULL,
   FOREIGN KEY (created_by) REFERENCES users(id)
 );

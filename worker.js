@@ -1354,6 +1354,11 @@ export default {
         const title = (formData.get('title') ?? '').trim();
         if (!title) return jsonResponse({ error: 'Room title is required' }, 400);
 
+        const visibility = (formData.get('visibility') ?? 'private').toString().toLowerCase();
+        if (!['public', 'private'].includes(visibility)) {
+          return jsonResponse({ error: 'visibility must be "public" or "private"' }, 400);
+        }
+
         const expiresRaw = formData.get('expires_at');
         let expiresAt = null;
         if (expiresRaw) {
@@ -1389,8 +1394,8 @@ export default {
         if (!code) return jsonResponse({ error: 'Failed to generate unique room code, try again' }, 500);
 
         const roomResult = await env.DB.prepare(
-          'INSERT INTO quiz_rooms (code, title, created_by, expires_at, status, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-        ).bind(code, title, session.sub, expiresAt, 'open', Date.now()).run();
+          'INSERT INTO quiz_rooms (code, title, created_by, expires_at, status, visibility, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        ).bind(code, title, session.sub, expiresAt, 'open', visibility, Date.now()).run();
 
         const roomId = roomResult.meta.last_row_id;
         await env.DB.batch(questions.map((q, i) =>
@@ -1410,14 +1415,14 @@ export default {
         // Admins can pass ?all=1 to see all rooms
         const showAll = session.role === 'admin' && url.searchParams.get('all') === '1';
         const query = showAll
-          ? `SELECT r.id, r.code, r.title, r.status, r.expires_at, r.created_at,
+          ? `SELECT r.id, r.code, r.title, r.status, r.visibility, r.expires_at, r.created_at,
                     COUNT(DISTINCT q.id) AS question_count,
                     COUNT(DISTINCT a.id) AS attempt_count
              FROM quiz_rooms r
              LEFT JOIN quiz_room_questions q ON q.room_id = r.id
              LEFT JOIN quiz_room_attempts a ON a.room_id = r.id
              GROUP BY r.id ORDER BY r.created_at DESC`
-          : `SELECT r.id, r.code, r.title, r.status, r.expires_at, r.created_at,
+          : `SELECT r.id, r.code, r.title, r.status, r.visibility, r.expires_at, r.created_at,
                     COUNT(DISTINCT q.id) AS question_count,
                     COUNT(DISTINCT a.id) AS attempt_count
              FROM quiz_rooms r
@@ -1430,6 +1435,27 @@ export default {
           ? env.DB.prepare(query)
           : env.DB.prepare(query).bind(session.sub);
         const { results } = await stmt.all();
+        return jsonResponse({ results: results ?? [] });
+      }
+
+      // GET /api/rooms/public — any logged-in member browses open public rooms
+      if (path === '/api/rooms/public' && request.method === 'GET') {
+        const session = await requireRole(request, env, 'member');
+        if (session instanceof Response) return session;
+
+        const nowSecs = Math.floor(Date.now() / 1000);
+        const { results } = await env.DB.prepare(`
+          SELECT r.code, r.title, r.created_at, u.username AS instructor_name,
+                 COUNT(DISTINCT q.id) AS question_count,
+                 att.id IS NOT NULL AS attempted
+          FROM quiz_rooms r
+          JOIN users u ON u.id = r.created_by
+          LEFT JOIN quiz_room_questions q ON q.room_id = r.id
+          LEFT JOIN quiz_room_attempts att ON att.room_id = r.id AND att.user_id = ?
+          WHERE r.visibility = 'public' AND r.status = 'open'
+            AND (r.expires_at IS NULL OR r.expires_at > ?)
+          GROUP BY r.id ORDER BY r.created_at DESC
+        `).bind(session.sub, nowSecs).all();
         return jsonResponse({ results: results ?? [] });
       }
 

@@ -1810,11 +1810,13 @@ async function initInstructorPanel() {
     const mode = document.getElementById('questionSourceMode').value;
     const fileInput = document.getElementById('roomFile');
     const expiry = document.getElementById('roomExpiry').value;
+    const visibility = document.getElementById('roomVisibility').value;
 
     if (!title) { errEl.textContent = 'Room title is required.'; errEl.hidden = false; return; }
 
     const fd = new FormData();
     fd.append('title', title);
+    fd.append('visibility', visibility);
     if (expiry) fd.append('expires_at', new Date(expiry).toISOString());
 
     if (mode === 'manual') {
@@ -1885,6 +1887,7 @@ async function initInstructorPanel() {
             <th>Title</th>
             <th>Code</th>
             <th>Status</th>
+            <th>Visibility</th>
             <th style="text-align:center;">Qs</th>
             <th style="text-align:center;">Attempts</th>
             <th>Created</th>
@@ -1899,6 +1902,7 @@ async function initInstructorPanel() {
                 <td style="font-family:'Share Tech Mono',monospace;">${escHtml(r.title)}</td>
                 <td><code>${escHtml(r.code)}</code></td>
                 <td><span class="status-badge status-${isOpen ? 'open' : 'closed'}">${isOpen ? 'Open' : 'Closed'}</span></td>
+                <td><span class="status-badge status-${r.visibility === 'public' ? 'open' : 'closed'}">${r.visibility === 'public' ? 'Public' : 'Private'}</span></td>
                 <td style="text-align:center;color:var(--text-muted);">${r.question_count}</td>
                 <td style="text-align:center;color:var(--text-muted);">${r.attempt_count}</td>
                 <td style="color:var(--text-muted);font-size:0.85rem;">${new Date(r.created_at).toLocaleDateString()}</td>
@@ -2105,8 +2109,60 @@ async function initInstructorPanel() {
 
 // ─── Init ──────────────────────────────────────────────────────────────────────
 
-// ─── Quiz Entry Page ────────────────────────────────────────────
-function initQuizEntry() {
+// ─── Join Classroom Page ────────────────────────────────────────────
+async function initJoinClassroom() {
+  const loginGate  = document.getElementById('loginGate');
+  const joinContent = document.getElementById('joinContent');
+
+  if (!currentUser) {
+    if (loginGate) loginGate.hidden = false;
+    document.getElementById('loginGateBtn')?.addEventListener('click', () => openAuthModal('login'));
+    return;
+  }
+
+  if (joinContent) joinContent.hidden = false;
+  await loadPublicRooms();
+  initRoomCodeEntry();
+}
+
+async function loadPublicRooms() {
+  const wrap = document.getElementById('publicRoomsWrap');
+  if (!wrap) return;
+  try {
+    const res = await fetch('/api/rooms/public');
+    if (!res.ok) throw new Error();
+    const { results } = await res.json();
+    renderPublicRooms(results ?? []);
+  } catch {
+    wrap.innerHTML = `<p style="color:var(--danger);font-family:'Share Tech Mono',monospace;">Failed to load public rooms.</p>`;
+  }
+}
+
+function renderPublicRooms(rooms) {
+  const wrap = document.getElementById('publicRoomsWrap');
+  if (!rooms.length) {
+    wrap.innerHTML = `
+      <div style="text-align:center;padding:3rem 1rem;color:var(--text-muted);font-family:'Share Tech Mono',monospace;background:var(--surface);border:1px solid var(--border);border-radius:6px;">
+        <p style="font-size:2rem;margin-bottom:0.75rem;">📋</p>
+        <p>No public rooms right now. Check back later or ask your instructor for a room code.</p>
+      </div>`;
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="public-room-grid">
+      ${rooms.map(r => `
+        <div class="room-card">
+          <div class="room-card-title">${escHtml(r.title)}</div>
+          <div class="room-card-meta">By ${escHtml(r.instructor_name)} · ${r.question_count} question${r.question_count === 1 ? '' : 's'}</div>
+          <div class="room-card-footer">
+            <code>${escHtml(r.code)}</code>
+            <a href="/quiz/${escHtml(r.code)}" class="btn btn-sm">${r.attempted ? 'View Result' : 'Join'}</a>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function initRoomCodeEntry() {
   const form    = document.getElementById('quizEntryForm');
   const input   = document.getElementById('roomCodeInput');
   const errorEl = document.getElementById('quizEntryError');
@@ -2121,10 +2177,6 @@ function initQuizEntry() {
 
   form.addEventListener('submit', e => {
     e.preventDefault();
-    if (!currentUser) {
-      openAuthModal('login');
-      return;
-    }
     const raw = input.value.trim().toUpperCase().replace(/\s/g, '');
     if (!raw) { showEntryError('Please enter a room code.'); return; }
     let code = raw;
@@ -2342,7 +2394,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else if (window.location.pathname.startsWith('/topic/')) {
     renderTopicPage();
   } else if (window.location.pathname === '/quiz') {
-    initQuizEntry();
+    initJoinClassroom();
   } else if (window.location.pathname.startsWith('/quiz/')) {
     initQuizRoom();
   } else if (window.location.pathname === '/instructor') {
