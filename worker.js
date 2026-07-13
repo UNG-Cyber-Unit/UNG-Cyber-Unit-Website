@@ -1459,6 +1459,34 @@ export default {
         return jsonResponse({ results: results ?? [] });
       }
 
+      // DELETE /api/rooms/:code/attempts/:attemptId — instructor resets a student's attempt
+      const attemptMatch = path.match(/^\/api\/rooms\/([A-Z0-9]{4}-[A-Z0-9]{4})\/attempts\/(\d+)$/);
+      if (attemptMatch && request.method === 'DELETE') {
+        const session = await requireRole(request, env, 'instructor');
+        if (session instanceof Response) return session;
+
+        const [, attemptCode, attemptIdRaw] = attemptMatch;
+        const attemptId = Number(attemptIdRaw);
+
+        const room = await env.DB.prepare('SELECT id, created_by FROM quiz_rooms WHERE code = ?').bind(attemptCode).first();
+        if (!room) return jsonResponse({ error: 'Room not found' }, 404);
+        if (room.created_by !== session.sub && session.role !== 'admin') {
+          return jsonResponse({ error: 'Forbidden' }, 403);
+        }
+
+        const attempt = await env.DB.prepare(
+          'SELECT id FROM quiz_room_attempts WHERE id = ? AND room_id = ?'
+        ).bind(attemptId, room.id).first();
+        if (!attempt) return jsonResponse({ error: 'Attempt not found' }, 404);
+
+        await env.DB.batch([
+          env.DB.prepare('DELETE FROM quiz_room_answers WHERE attempt_id = ?').bind(attemptId),
+          env.DB.prepare('DELETE FROM quiz_room_attempts WHERE id = ?').bind(attemptId),
+        ]);
+
+        return jsonResponse({ ok: true });
+      }
+
       // Routes with a room code: /api/rooms/:code[/subpath]
       const roomCodeMatch = path.match(/^\/api\/rooms\/([A-Z0-9]{4}-[A-Z0-9]{4})(\/[a-z-]*)?$/);
       if (roomCodeMatch) {

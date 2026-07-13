@@ -2050,6 +2050,7 @@ async function initInstructorPanel() {
             <th>Student</th>
             <th>Score</th>
             <th>Completed</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody id="rosterBody"></tbody>
@@ -2065,13 +2066,14 @@ async function initInstructorPanel() {
         <td><button class="expand-btn" aria-expanded="false" aria-label="Expand answers for ${escHtml(att.username)}">▶</button></td>
         <td style="font-family:'Share Tech Mono',monospace;">${escHtml(att.username)}</td>
         <td><span style="font-family:'Share Tech Mono',monospace;color:${scoreColor};">${att.score}/${att.total} (${pct}%)</span></td>
-        <td style="color:var(--text-muted);font-size:0.85rem;">${new Date(att.completed_at).toLocaleString()}</td>`;
+        <td style="color:var(--text-muted);font-size:0.85rem;">${new Date(att.completed_at).toLocaleString()}</td>
+        <td><button class="btn btn-sm btn-danger reset-attempt-btn" data-attempt-id="${att.id}" data-username="${escHtml(att.username)}">Reset Attempt</button></td>`;
 
       const detailRow = document.createElement('tr');
       detailRow.className = 'answer-detail-row';
       detailRow.hidden = true;
       detailRow.innerHTML = `
-        <td colspan="4" style="padding:0;">
+        <td colspan="5" style="padding:0;">
           <div class="answer-detail-wrap">
             ${questions.map((q, qi) => {
               const ans = (att.answers ?? []).find(a => a.question_id === q.id);
@@ -2093,6 +2095,17 @@ async function initInstructorPanel() {
         detailRow.hidden = expanded;
         e.target.setAttribute('aria-expanded', String(!expanded));
         e.target.textContent = expanded ? '▶' : '▼';
+      });
+
+      row.querySelector('.reset-attempt-btn').addEventListener('click', () => {
+        confirmDialog(`Reset ${att.username}'s attempt? They'll be able to retake this quiz.`, async () => {
+          const res = await fetch(`/api/rooms/${currentResultsData.code}/attempts/${att.id}`, { method: 'DELETE' });
+          if (res.ok) {
+            await loadResults(currentResultsData.code, currentResultsData.room.title);
+          } else {
+            alert('Failed to reset attempt.');
+          }
+        }, 'Reset');
       });
 
       tbody.appendChild(row);
