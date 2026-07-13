@@ -2,7 +2,7 @@
 
 An interactive cybersecurity education website for the **University of North Georgia Boar's Head Brigade Cyber Unit**.
 
-Covers beginner cybersecurity topics with quizzes, an about page with the unit's org structure, an SOP link, user accounts with progress tracking, and instructor-hosted live Quiz Rooms.
+Covers beginner cybersecurity topics with quizzes, an about page with the unit's org structure and sister organization (CyberHawks), an SOP link, user accounts with progress tracking, and instructor-hosted live Quiz Rooms with public/private visibility and free-response grading.
 
 Built with **Cloudflare Workers**, **D1**, and vanilla HTML/CSS/JS.
 
@@ -28,6 +28,19 @@ Each topic includes reading content and a 3-question quiz with instant feedback.
 
 ---
 
+## Quiz Rooms
+
+Instructors can host live quizzes separate from the self-paced topic quizzes above:
+
+- **Question sources** — build questions manually in the Instructor Panel (card-based builder), or import a `.csv`/`.json` file. Both support two question types:
+  - **Multiple choice** — 2–4 answers, auto-graded on submit.
+  - **Free response** — student types an answer; scored as *pending* until an instructor manually grades it correct/incorrect from the results page. The attempt shows a tentative score in the meantime.
+- **Visibility** — a room is **Private** (default, join by code only) or **Public** (also listed for any logged-in member to browse and join on the **Join Room** page, at `/quiz`).
+- **Instructor results view** — per-student roster with score, a "N pending" badge when free-response grading is outstanding, a **Review Answers** button (jumps straight to the grading controls, which also show the question's grading notes), a **Reset Attempt** button (lets a student retake the quiz), and CSV export.
+- **Room codes** are `XXXX-XXXX`, generated with a CSPRNG.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -36,7 +49,8 @@ Each topic includes reading content and a 3-question quiz with instant feedback.
 | Database | Cloudflare D1 (`schema.sql`) |
 | Static assets | Cloudflare Workers Assets (`./public`) |
 | Frontend | Vanilla HTML / CSS / JS |
-| Auth | Custom JWT (HS256) + PBKDF2 password hashing, HttpOnly session cookie |
+| Auth | Custom JWT (HS256) + PBKDF2 password hashing, HttpOnly `SameSite=Strict` session cookie |
+| Input validation | Server-side length caps on all Quiz Room fields, 1MB question-file cap, CSV/formula-injection sanitization on exported reports, parameterized SQL throughout |
 | Deployment | Wrangler CLI, auto-deployed on push to `main` via GitHub Actions (`.github/workflows/deploy.yml`) |
 
 ---
@@ -51,8 +65,8 @@ cybersec-basics/
 │   ├── resources.html     # External learning links
 │   ├── about.html         # Unit overview and org chart
 │   ├── admin.html         # Admin panel (user/role management)
-│   ├── instructor.html    # Instructor panel (create/manage Quiz Rooms)
-│   ├── quiz.html          # Student: join a Quiz Room by code
+│   ├── instructor.html    # Instructor panel (create/manage Quiz Rooms, grade free responses)
+│   ├── quiz.html          # "Join Room" page: browse public rooms + join by code
 │   ├── quiz-room.html     # Student: live Quiz Room attempt
 │   ├── css/               # Global stylesheet
 │   ├── images/            # Topic images
@@ -79,9 +93,9 @@ cybersec-basics/
 | `/resources` | External learning resources |
 | `/about` | Unit overview and org chart |
 | `/sop` | Cyber Unit SOP (PDF) |
-| `/instructor` | Instructor panel — create and manage Quiz Rooms |
-| `/quiz` | Student — join a Quiz Room by code |
-| `/quiz/:code` | Student — take a live Quiz Room |
+| `/instructor` | Instructor panel — create/manage Quiz Rooms, grade free responses |
+| `/quiz` | **Join Room** — browse public Quiz Rooms, or enter a private room code |
+| `/quiz/:code` | Student — take a live Quiz Room / view your result |
 
 ### API
 
@@ -92,8 +106,15 @@ cybersec-basics/
 | `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/me` | Account auth |
 | `/api/progress` | Logged-in user's per-topic quiz progress |
 | `/api/admin/users` | Admin — list/manage users |
-| `/api/rooms` | Instructor — create/list Quiz Rooms |
-| `/api/rooms/:code/join`, `/attempt`, `/my-attempt`, `/results` | Quiz Room join/attempt flow |
+| `/api/rooms` (POST/GET) | Instructor — create a room / list your rooms |
+| `/api/rooms/public` | Any logged-in member — browse open public rooms |
+| `/api/rooms/:code/join` | Student — join a room, fetch its questions |
+| `/api/rooms/:code/attempt` (POST) | Student — submit answers |
+| `/api/rooms/:code/my-attempt` | Student — check your own result |
+| `/api/rooms/:code/results` | Instructor — attempt roster for a room |
+| `/api/rooms/:code` (GET/PATCH/DELETE) | Instructor — view/edit/delete a room |
+| `/api/rooms/:code/attempts/:attemptId` (DELETE) | Instructor — reset a student's attempt |
+| `/api/rooms/:code/answers/:answerId` (PATCH) | Instructor — grade a free-response answer |
 
 ---
 
