@@ -2135,6 +2135,7 @@ async function initInstructorPanel() {
                   <div class="answer-row-fr ${rowClass}">
                     <div class="answer-question"><span class="answer-icon">${icon}</span>Q${qi + 1}: ${escHtml(q.question)}</div>
                     <div class="quiz-free-response-display">${escHtml(ans?.response_text || '(no answer submitted)')}</div>
+                    ${q.explanation ? `<div class="quiz-grading-notes"><strong>Grading notes:</strong> ${escHtml(q.explanation)}</div>` : ''}
                     ${pending
                       ? `<div class="grade-actions">
                            <button type="button" class="btn btn-sm grade-btn" data-answer-id="${ans?.id}" data-verdict="1">Mark Correct</button>
