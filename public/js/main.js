@@ -2419,7 +2419,8 @@ function renderRoomResults(attempt, room, wasAlreadyAttempted) {
       <div class="room-score-pct" style="color:${color};">${pct}%</div>
       <div class="room-score-msg">${msg}</div>
     </div>
-    ${answerRows}`;
+    ${answerRows}
+    <a href="/quiz" class="btn btn-sm" style="margin-top:1.5rem;">Back to Join Room</a>`;
 
   container.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
