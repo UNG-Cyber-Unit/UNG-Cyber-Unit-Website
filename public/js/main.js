@@ -1237,45 +1237,55 @@ function updateAuthNav() {
   const navItem = document.getElementById('authNavItem');
   if (!navItem) return;
   if (currentUser) {
-    const dropdownItems = [
+    const panelItems = [
       isInstructor() ? `<a href="/instructor" class="nav-dropdown-item">Instructor Panel</a>` : '',
       currentUser.role === 'admin' ? `<a href="/admin" class="nav-dropdown-item nav-dropdown-item--danger">Admin Panel</a>` : '',
     ].filter(Boolean).join('');
 
-    const wrenchBtn = dropdownItems
+    const wrenchBtn = panelItems
       ? `<div class="nav-dropdown" id="navDropdown">
            <button class="nav-dropdown-toggle" id="navDropdownBtn" aria-label="Panel options" aria-expanded="false">🔧</button>
-           <div class="nav-dropdown-menu" id="navDropdownMenu" hidden>${dropdownItems}</div>
+           <div class="nav-dropdown-menu" id="navDropdownMenu" hidden>${panelItems}</div>
          </div>`
       : '';
 
+    const joinBtn = `<div class="nav-dropdown" id="navJoinDropdown">
+        <button class="nav-dropdown-toggle" id="navJoinDropdownBtn" aria-label="Join menu" aria-expanded="false">☰</button>
+        <div class="nav-dropdown-menu" id="navJoinDropdownMenu" hidden><a href="/quiz" class="nav-dropdown-item">Join Room</a></div>
+      </div>`;
+
     navItem.innerHTML = `
+      ${joinBtn}
       ${wrenchBtn}
       <span class="navbar-username">${escHtml(currentUser.username)}</span>
       <button class="btn btn-sm" id="logoutBtn">Sign Out</button>`;
 
     document.getElementById('logoutBtn').addEventListener('click', handleLogout);
 
-    const dropdownBtn = document.getElementById('navDropdownBtn');
-    const dropdownMenu = document.getElementById('navDropdownMenu');
-    if (dropdownBtn && dropdownMenu) {
-      dropdownBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        const nowOpen = dropdownMenu.hidden;
-        dropdownMenu.hidden = !nowOpen;
-        dropdownBtn.setAttribute('aria-expanded', nowOpen);
-      });
-      document.addEventListener('click', e => {
-        if (!dropdownMenu.hidden && !dropdownMenu.contains(e.target)) {
-          dropdownMenu.hidden = true;
-          dropdownBtn.setAttribute('aria-expanded', 'false');
-        }
-      });
-    }
+    wireNavDropdown('navJoinDropdownBtn', 'navJoinDropdownMenu');
+    wireNavDropdown('navDropdownBtn', 'navDropdownMenu');
   } else {
     navItem.innerHTML = `<button class="btn btn-sm" id="openAuthBtn">Sign In</button>`;
     document.getElementById('openAuthBtn').addEventListener('click', () => openAuthModal('login'));
   }
+}
+
+function wireNavDropdown(btnId, menuId) {
+  const btn = document.getElementById(btnId);
+  const menu = document.getElementById(menuId);
+  if (!btn || !menu) return;
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const nowOpen = menu.hidden;
+    menu.hidden = !nowOpen;
+    btn.setAttribute('aria-expanded', nowOpen);
+  });
+  document.addEventListener('click', e => {
+    if (!menu.hidden && !menu.contains(e.target)) {
+      menu.hidden = true;
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
 }
 
 function handleLogout() {
@@ -2109,8 +2119,8 @@ async function initInstructorPanel() {
 
 // ─── Init ──────────────────────────────────────────────────────────────────────
 
-// ─── Join Classroom Page ────────────────────────────────────────────
-async function initJoinClassroom() {
+// ─── Join Room Page ────────────────────────────────────────────
+async function initJoinRoom() {
   const loginGate  = document.getElementById('loginGate');
   const joinContent = document.getElementById('joinContent');
 
@@ -2394,7 +2404,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else if (window.location.pathname.startsWith('/topic/')) {
     renderTopicPage();
   } else if (window.location.pathname === '/quiz') {
-    initJoinClassroom();
+    initJoinRoom();
   } else if (window.location.pathname.startsWith('/quiz/')) {
     initQuizRoom();
   } else if (window.location.pathname === '/instructor') {
