@@ -32,9 +32,10 @@ CREATE TABLE IF NOT EXISTS quiz_room_questions (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   room_id     INTEGER NOT NULL,
   sort_order  INTEGER NOT NULL DEFAULT 0,
+  type        TEXT    NOT NULL DEFAULT 'multiple_choice',
   question    TEXT    NOT NULL,
   answers     TEXT    NOT NULL,
-  correct     INTEGER NOT NULL,
+  correct     INTEGER,
   explanation TEXT    NOT NULL DEFAULT '',
   FOREIGN KEY (room_id) REFERENCES quiz_rooms(id)
 );
@@ -52,11 +53,12 @@ CREATE TABLE IF NOT EXISTS quiz_room_attempts (
 );
 
 CREATE TABLE IF NOT EXISTS quiz_room_answers (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  attempt_id   INTEGER NOT NULL,
-  question_id  INTEGER NOT NULL,
-  selected     INTEGER NOT NULL,
-  is_correct   INTEGER NOT NULL,
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  attempt_id    INTEGER NOT NULL,
+  question_id   INTEGER NOT NULL,
+  selected      INTEGER,
+  response_text TEXT,
+  is_correct    INTEGER,
   FOREIGN KEY (attempt_id)  REFERENCES quiz_room_attempts(id),
   FOREIGN KEY (question_id) REFERENCES quiz_room_questions(id)
 );

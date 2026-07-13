@@ -90,18 +90,19 @@
                       </thead>
                       <tbody>
                         <tr><td>question</td>  <td><span class="req">required</span></td><td>Question text</td></tr>
-                        <tr><td>answer_a</td>  <td><span class="req">required</span></td><td>First answer choice</td></tr>
-                        <tr><td>answer_b</td>  <td><span class="req">required</span></td><td>Second answer choice</td></tr>
+                        <tr><td>type</td>      <td><span class="opt">optional</span></td><td><code>multiple_choice</code> (default) or <code>free_response</code></td></tr>
+                        <tr><td>answer_a</td>  <td><span class="req">required*</span></td><td>First answer choice — *not needed for free_response</td></tr>
+                        <tr><td>answer_b</td>  <td><span class="req">required*</span></td><td>Second answer choice — *not needed for free_response</td></tr>
                         <tr><td>answer_c</td>  <td><span class="opt">optional</span></td><td>Third choice — leave blank if unused</td></tr>
                         <tr><td>answer_d</td>  <td><span class="opt">optional</span></td><td>Fourth choice — leave blank if unused</td></tr>
-                        <tr><td>correct</td>   <td><span class="req">required</span></td><td>0-indexed — 0=A, 1=B, 2=C, 3=D</td></tr>
-                        <tr><td>explanation</td><td><span class="opt">optional</span></td><td>Shown to student after submit</td></tr>
+                        <tr><td>correct</td>   <td><span class="req">required*</span></td><td>0-indexed — 0=A, 1=B, 2=C, 3=D — *not needed for free_response</td></tr>
+                        <tr><td>explanation</td><td><span class="opt">optional</span></td><td>Shown to student after submit; doubles as grading notes for free_response</td></tr>
                       </tbody>
                     </table>
-                    <pre class="format-code"><span class="hl">question,answer_a,answer_b,answer_c,answer_d,correct,explanation</span>
-"What does CIA stand for?","Confidentiality Integrity Availability","Central Intelligence Agency","Cyber Intrusion Analysis","Classified Information Access",0,"The CIA Triad is the foundation of cybersecurity."
-"True or False: Reusing passwords is safe.","True","False",,,1,"Reusing passwords means one breach exposes all accounts."
-"What does a firewall do?","Speeds up internet","Blocks unauthorized traffic","Deletes viruses",,1,"A firewall monitors and controls network traffic based on rules."</pre>
+                    <pre class="format-code"><span class="hl">question,type,answer_a,answer_b,answer_c,answer_d,correct,explanation</span>
+"What does CIA stand for?",,"Confidentiality Integrity Availability","Central Intelligence Agency","Cyber Intrusion Analysis","Classified Information Access",0,"The CIA Triad is the foundation of cybersecurity."
+"True or False: Reusing passwords is safe.",,"True","False",,,1,"Reusing passwords means one breach exposes all accounts."
+"Explain why reusing passwords across sites is risky.","free_response",,,,,,"Look for: credential stuffing, one breach exposes all accounts."</pre>
                     <p style="color:var(--text-muted);font-size:0.78rem;margin-top:0.5rem;font-family:'Share Tech Mono',monospace;">
                       Tip: build in Excel or Google Sheets, then export as <strong>CSV UTF-8</strong>.
                     </p>
@@ -111,7 +112,7 @@
                   <div>
                     <p class="format-tab-heading">JSON Format</p>
                     <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:0.75rem;">
-                      An array of question objects. <code>answers</code> is a list of 2–4 strings; <code>correct</code> is the 0-based index of the right answer.
+                      An array of question objects. <code>type</code> is optional (<code>multiple_choice</code> default, or <code>free_response</code>). For <code>multiple_choice</code>, <code>answers</code> is a list of 2–4 strings and <code>correct</code> is the 0-based index of the right answer. For <code>free_response</code>, omit <code>answers</code>/<code>correct</code> — students type a response and you grade it manually afterward.
                     </p>
                     <pre class="format-code">[
   {
@@ -129,6 +130,11 @@
     <span class="hl">"answers"</span>: ["True", "False"],
     <span class="hl">"correct"</span>: 1,
     <span class="hl">"explanation"</span>: "Reusing passwords means one breach exposes all accounts."
+  },
+  {
+    <span class="hl">"question"</span>: "Explain why reusing passwords across sites is risky.",
+    <span class="hl">"type"</span>: "free_response",
+    <span class="hl">"explanation"</span>: "Look for: credential stuffing, one breach exposes all accounts."
   }
 ]</pre>
                     <p style="color:var(--text-muted);font-size:0.78rem;margin-top:0.5rem;font-family:'Share Tech Mono',monospace;">

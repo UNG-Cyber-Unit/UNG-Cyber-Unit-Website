@@ -1735,6 +1735,18 @@ async function initInstructorPanel() {
     });
   }
 
+  function setCardType(card, type) {
+    const mcFields = card.querySelector('.quiz-mc-fields');
+    const frNote   = card.querySelector('.quiz-fr-note');
+    const isFR = type === 'free_response';
+    if (mcFields) mcFields.hidden = isFR;
+    if (frNote) frNote.hidden = !isFR;
+    const explanationLabel = card.querySelector('.quiz-explanation-label');
+    if (explanationLabel) {
+      explanationLabel.firstChild.textContent = isFR ? 'Model Answer / Grading Notes ' : 'Explanation ';
+    }
+  }
+
   function addQuestionCard() {
     const qid = ++qCounter;
     const card = document.createElement('div');
@@ -1746,13 +1758,23 @@ async function initInstructorPanel() {
         <button type="button" class="quiz-card-remove" aria-label="Remove question">✕</button>
       </div>
       <div class="form-group">
+        <label>Type</label>
+        <select class="quiz-q-type">
+          <option value="multiple_choice" selected>Multiple Choice</option>
+          <option value="free_response">Free Response</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label>Question Text</label>
         <textarea class="quiz-q-text" rows="2" placeholder="e.g. What does CIA stand for?"></textarea>
       </div>
-      <div class="quiz-answers"></div>
-      <button type="button" class="btn btn-sm quiz-add-answer">+ Add Answer</button>
+      <div class="quiz-mc-fields">
+        <div class="quiz-answers"></div>
+        <button type="button" class="btn btn-sm quiz-add-answer">+ Add Answer</button>
+      </div>
+      <p class="quiz-fr-note" hidden>Students will type a free-text response. You'll grade each submission as correct/incorrect afterward.</p>
       <div class="form-group" style="margin-top:0.75rem;">
-        <label>Explanation <span class="form-hint">optional</span></label>
+        <label class="quiz-explanation-label">Explanation <span class="form-hint">optional</span></label>
         <textarea class="quiz-q-explanation" rows="2" placeholder="Shown to student after they answer"></textarea>
       </div>`;
     const answersWrap = card.querySelector('.quiz-answers');
@@ -1786,6 +1808,12 @@ async function initInstructorPanel() {
     }
   });
 
+  manualList?.addEventListener('change', e => {
+    if (!e.target.classList.contains('quiz-q-type')) return;
+    const card = e.target.closest('.quiz-card');
+    if (card) setCardType(card, e.target.value);
+  });
+
   // Seed with one empty question to start
   if (manualList && !manualList.children.length) addQuestionCard();
 
@@ -1794,8 +1822,15 @@ async function initInstructorPanel() {
     const questions = [];
     for (let i = 0; i < cards.length; i++) {
       const card = cards[i];
+      const type = card.querySelector('.quiz-q-type').value === 'free_response' ? 'free_response' : 'multiple_choice';
       const question = card.querySelector('.quiz-q-text').value.trim();
       if (!question) return { error: `Question ${i + 1}: question text is required` };
+      const explanation = card.querySelector('.quiz-q-explanation').value.trim();
+
+      if (type === 'free_response') {
+        questions.push({ question, type, answers: [], correct: null, explanation });
+        continue;
+      }
 
       const rows = [...card.querySelectorAll('.quiz-answer-row')];
       const answers = rows.map(r => r.querySelector('.quiz-answer-text').value.trim());
@@ -1804,8 +1839,7 @@ async function initInstructorPanel() {
       const correct = rows.findIndex(r => r.querySelector('.quiz-answer-correct').checked);
       if (correct === -1) return { error: `Question ${i + 1}: select which answer is correct` };
 
-      const explanation = card.querySelector('.quiz-q-explanation').value.trim();
-      questions.push({ question, answers, correct, explanation });
+      questions.push({ question, type, answers, correct, explanation });
     }
     if (!questions.length) return { error: 'Add at least one question' };
     return { questions };
@@ -2017,6 +2051,8 @@ async function initInstructorPanel() {
       ? (attempts.reduce((s, a) => s + a.score, 0) / attempts.length).toFixed(1)
       : null;
     const total = attempts.length ? attempts[0].total : questions.length;
+    const totalPending = attempts.reduce((s, a) => s + (a.pendingCount ?? 0), 0);
+    const hasFreeResponse = questions.some(q => q.type === 'free_response');
 
     summaryEl.innerHTML = `
       <div class="results-summary-grid">
@@ -2032,6 +2068,11 @@ async function initInstructorPanel() {
           <span class="results-stat-val">${questions.length}</span>
           <span class="results-stat-label">Questions</span>
         </div>
+        ${hasFreeResponse ? `
+        <div class="results-stat">
+          <span class="results-stat-val" style="color:${totalPending > 0 ? '#4488ff' : 'var(--accent)'};">${totalPending}</span>
+          <span class="results-stat-label">Pending Review</span>
+        </div>` : ''}
       </div>`;
 
     if (!attempts.length) {
@@ -2061,11 +2102,15 @@ async function initInstructorPanel() {
       const pct = Math.round((att.score / att.total) * 100);
       const scoreColor = att.score === att.total ? 'var(--accent)' : att.score / att.total >= 0.7 ? 'var(--warn)' : 'var(--danger)';
 
+      const pendingBadge = att.pendingCount
+        ? ` <span class="quiz-pending-badge" style="margin-top:0;">${att.pendingCount} pending</span>`
+        : '';
+
       const row = document.createElement('tr');
       row.innerHTML = `
         <td><button class="expand-btn" aria-expanded="false" aria-label="Expand answers for ${escHtml(att.username)}">▶</button></td>
         <td style="font-family:'Share Tech Mono',monospace;">${escHtml(att.username)}</td>
-        <td><span style="font-family:'Share Tech Mono',monospace;color:${scoreColor};">${att.score}/${att.total} (${pct}%)</span></td>
+        <td><span style="font-family:'Share Tech Mono',monospace;color:${scoreColor};">${att.score}/${att.total} (${pct}%)</span>${pendingBadge}</td>
         <td style="color:var(--text-muted);font-size:0.85rem;">${new Date(att.completed_at).toLocaleString()}</td>
         <td><button class="btn btn-sm btn-danger reset-attempt-btn" data-attempt-id="${att.id}" data-username="${escHtml(att.username)}">Reset Attempt</button></td>`;
 
@@ -2077,6 +2122,25 @@ async function initInstructorPanel() {
           <div class="answer-detail-wrap">
             ${questions.map((q, qi) => {
               const ans = (att.answers ?? []).find(a => a.question_id === q.id);
+
+              if (q.type === 'free_response') {
+                const pending = !ans || ans.is_correct === null;
+                const isCorrect = !!ans?.is_correct;
+                const rowClass = pending ? 'answer-pending' : (isCorrect ? 'answer-correct' : 'answer-wrong');
+                const icon = pending ? '⋯' : (isCorrect ? '✓' : '✗');
+                return `
+                  <div class="answer-row-fr ${rowClass}">
+                    <div class="answer-question"><span class="answer-icon">${icon}</span>Q${qi + 1}: ${escHtml(q.question)}</div>
+                    <div class="quiz-free-response-display">${escHtml(ans?.response_text || '(no answer submitted)')}</div>
+                    ${pending
+                      ? `<div class="grade-actions">
+                           <button type="button" class="btn btn-sm grade-btn" data-answer-id="${ans?.id}" data-verdict="1">Mark Correct</button>
+                           <button type="button" class="btn btn-sm btn-danger grade-btn" data-answer-id="${ans?.id}" data-verdict="0">Mark Incorrect</button>
+                         </div>`
+                      : `<div class="answer-choice">Graded: ${isCorrect ? 'Correct' : 'Incorrect'}</div>`}
+                  </div>`;
+              }
+
               const correct = ans?.is_correct;
               const selectedLabel = ans !== undefined ? String.fromCharCode(65 + ans.selected) : '—';
               const correctLabel = String.fromCharCode(65 + q.correct);
@@ -2108,6 +2172,22 @@ async function initInstructorPanel() {
         }, 'Reset');
       });
 
+      detailRow.querySelectorAll('.grade-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const isCorrect = Number(btn.dataset.verdict);
+          const res = await fetch(`/api/rooms/${currentResultsData.code}/answers/${btn.dataset.answerId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_correct: isCorrect }),
+          });
+          if (res.ok) {
+            await loadResults(currentResultsData.code, currentResultsData.room.title);
+          } else {
+            alert('Failed to save grade.');
+          }
+        });
+      });
+
       tbody.appendChild(row);
       tbody.appendChild(detailRow);
     });
@@ -2118,18 +2198,25 @@ async function initInstructorPanel() {
     const { code, questions, attempts } = currentResultsData;
     const headers = [
       'username', 'score', 'total', 'pct', 'completed_at',
-      ...questions.map((_, i) => `q${i + 1}_chose`),
+      ...questions.map((_, i) => `q${i + 1}_answer`),
       ...questions.map((_, i) => `q${i + 1}_correct`),
+      ...questions.map((_, i) => `q${i + 1}_grade`),
     ];
     const rows = attempts.map(att => {
       const ansMap = {};
       (att.answers ?? []).forEach(a => { ansMap[a.question_id] = a; });
+      const gradeLabel = a => a?.is_correct === null ? 'pending' : a?.is_correct ? 'correct' : 'incorrect';
       return [
         att.username, att.score, att.total,
         `${Math.round((att.score / att.total) * 100)}%`,
         new Date(att.completed_at).toISOString(),
-        ...questions.map(q => { const a = ansMap[q.id]; return a !== undefined ? String.fromCharCode(65 + a.selected) : ''; }),
-        ...questions.map(q => String.fromCharCode(65 + q.correct)),
+        ...questions.map(q => {
+          const a = ansMap[q.id];
+          if (!a) return '';
+          return q.type === 'free_response' ? (a.response_text ?? '') : String.fromCharCode(65 + a.selected);
+        }),
+        ...questions.map(q => q.type === 'free_response' ? '' : String.fromCharCode(65 + q.correct)),
+        ...questions.map(q => gradeLabel(ansMap[q.id])),
       ];
     });
     const csv = [headers, ...rows]
@@ -2300,8 +2387,14 @@ function renderRoomQuiz(questions, code, room) {
   const total      = questions.length;
   const selections = new Array(total).fill(null);
 
+  function isAnswered(qi) {
+    const s = selections[qi];
+    if (s === null) return false;
+    return typeof s === 'string' ? s.trim().length > 0 : true;
+  }
+
   function updateProgress() {
-    const answered  = selections.filter(s => s !== null).length;
+    const answered  = questions.filter((_, qi) => isAnswered(qi)).length;
     const remaining = total - answered;
     if (progressEl) progressEl.textContent = `${answered} / ${total} answered`;
     if (hintEl) hintEl.textContent = remaining > 0
@@ -2310,7 +2403,12 @@ function renderRoomQuiz(questions, code, room) {
     submitBtn.disabled = answered < total;
   }
 
-  container.innerHTML = questions.map((q, qi) => `
+  container.innerHTML = questions.map((q, qi) => q.type === 'free_response' ? `
+    <div class="quiz-box" id="rquiz-${qi}">
+      <p class="quiz-question">${qi + 1}. ${escHtml(q.question)}</p>
+      <textarea class="quiz-free-response" data-qi="${qi}" rows="4"
+        placeholder="Type your answer..." aria-label="Answer for question ${qi + 1}"></textarea>
+    </div>` : `
     <div class="quiz-box" id="rquiz-${qi}">
       <p class="quiz-question">${qi + 1}. ${escHtml(q.question)}</p>
       <div class="quiz-options" role="group" aria-label="Answer choices for question ${qi + 1}">
@@ -2339,10 +2437,18 @@ function renderRoomQuiz(questions, code, room) {
     });
   });
 
+  container.querySelectorAll('.quiz-free-response').forEach(textarea => {
+    textarea.addEventListener('input', () => {
+      const qi = parseInt(textarea.dataset.qi, 10);
+      selections[qi] = textarea.value;
+      updateProgress();
+    });
+  });
+
   updateProgress();
 
   submitBtn.addEventListener('click', async () => {
-    if (selections.some(s => s === null)) return;
+    if (questions.some((_, qi) => !isAnswered(qi))) return;
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting...';
 
@@ -2376,13 +2482,31 @@ function renderRoomResults(attempt, room, wasAlreadyAttempted) {
   const container = document.getElementById('quizRoomResults');
   if (!container) return;
 
+  const pendingCount = attempt.pendingCount ?? (attempt.answers ?? []).filter(a => a.is_correct === null).length;
   const pct     = Math.round((attempt.score / attempt.total) * 100);
   const perfect = attempt.score === attempt.total;
   const passing = attempt.score / attempt.total >= 0.7;
   const color   = perfect ? 'var(--accent)' : passing ? 'var(--warn)' : 'var(--danger)';
-  const msg     = perfect ? 'Perfect score!' : passing ? 'Good work!' : 'Keep studying!';
+  const msg     = pendingCount > 0 ? 'Tentative score — pending review' : perfect ? 'Perfect score!' : passing ? 'Good work!' : 'Keep studying!';
 
   const answerRows = (attempt.answers ?? []).map((a, i) => {
+    if (a.type === 'free_response') {
+      const pending = a.is_correct === null;
+      const isCorrect = !!a.is_correct;
+      const boxClass = pending ? 'result-pending' : (isCorrect ? 'result-correct' : 'result-wrong');
+      const icon = pending ? '⋯' : (isCorrect ? '✓' : '✗');
+      const feedback = !pending && a.explanation
+        ? `<div class="quiz-feedback ${isCorrect ? 'correct' : 'wrong'}" style="display:block;">
+            ${isCorrect ? `✓ Correct! ${escHtml(a.explanation)}` : `✗ Not quite. ${escHtml(a.explanation)}`}
+          </div>`
+        : '';
+      return `<div class="quiz-box room-result-box ${boxClass}">
+        <p class="quiz-question"><span class="result-icon">${icon}</span>${i + 1}. ${escHtml(a.question)}</p>
+        <div class="quiz-free-response-display">${escHtml(a.response_text || '(no answer submitted)')}</div>
+        ${pending ? `<div class="quiz-pending-badge">Pending instructor review</div>` : feedback}
+      </div>`;
+    }
+
     const isCorrect = !!a.is_correct;
     const opts = (a.answers ?? []).map((ans, ai) => {
       let cls = 'quiz-option';
@@ -2414,6 +2538,7 @@ function renderRoomResults(attempt, room, wasAlreadyAttempted) {
       <p style="color:var(--text-muted);font-family:'Share Tech Mono',monospace;font-size:0.82rem;margin:0;">${escHtml(room?.title ?? '')}</p>
     </header>
     ${wasAlreadyAttempted ? `<div class="room-already-banner">You already completed this quiz — here's how you did:</div>` : ''}
+    ${pendingCount > 0 ? `<div class="room-already-banner room-pending-banner">Tentative score — ${pendingCount} free-response question${pendingCount !== 1 ? 's' : ''} awaiting instructor review. Your score may change.</div>` : ''}
     <div class="room-score-card">
       <div class="room-score-num" style="color:${color};">${attempt.score} / ${attempt.total}</div>
       <div class="room-score-pct" style="color:${color};">${pct}%</div>

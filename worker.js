@@ -1121,9 +1121,7 @@ function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) return { error: 'CSV must have a header row and at least one question' };
   const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim());
-  for (const req of ['question', 'answer_a', 'answer_b', 'correct']) {
-    if (!headers.includes(req)) return { error: `Missing required CSV column: ${req}` };
-  }
+  if (!headers.includes('question')) return { error: 'Missing required CSV column: question' };
   const get = (row, col) => { const i = headers.indexOf(col); return i >= 0 ? (row[i] ?? '') : ''; };
   const questions = [];
   for (let r = 1; r < lines.length; r++) {
@@ -1131,6 +1129,14 @@ function parseCSV(text) {
     const row = parseCSVLine(lines[r]);
     const question = get(row, 'question');
     if (!question) continue;
+    const type = get(row, 'type').toLowerCase().trim() === 'free_response' ? 'free_response' : 'multiple_choice';
+    const explanation = get(row, 'explanation');
+
+    if (type === 'free_response') {
+      questions.push({ question, type, answers: [], correct: null, explanation });
+      continue;
+    }
+
     const answers = ['answer_a', 'answer_b', 'answer_c', 'answer_d']
       .map(col => get(row, col)).filter(a => a !== '');
     if (answers.length < 2) return { error: `Row ${r}: need at least 2 non-empty answers` };
@@ -1138,7 +1144,7 @@ function parseCSV(text) {
     if (isNaN(correct) || correct < 0 || correct >= answers.length) {
       return { error: `Row ${r}: "correct" must be 0–${answers.length - 1}` };
     }
-    questions.push({ question, answers, correct, explanation: get(row, 'explanation') });
+    questions.push({ question, type, answers, correct, explanation });
   }
   if (questions.length === 0) return { error: 'No valid questions found in CSV' };
   if (questions.length > 100) return { error: 'Maximum 100 questions per room' };
@@ -1155,6 +1161,14 @@ function validateJSONQuestions(raw) {
     if (typeof q.question !== 'string' || !q.question.trim()) {
       return { error: `Question ${i + 1}: question text is required` };
     }
+    const type = q.type === 'free_response' ? 'free_response' : 'multiple_choice';
+    const explanation = typeof q.explanation === 'string' ? q.explanation : '';
+
+    if (type === 'free_response') {
+      questions.push({ question: q.question.trim(), type, answers: [], correct: null, explanation });
+      continue;
+    }
+
     if (!Array.isArray(q.answers) || q.answers.length < 2 || q.answers.length > 4) {
       return { error: `Question ${i + 1}: must have 2–4 answers` };
     }
@@ -1163,10 +1177,7 @@ function validateJSONQuestions(raw) {
     if (typeof q.correct !== 'number' || q.correct < 0 || q.correct >= answers.length) {
       return { error: `Question ${i + 1}: correct must be 0–${answers.length - 1}` };
     }
-    questions.push({
-      question: q.question.trim(), answers, correct: q.correct,
-      explanation: typeof q.explanation === 'string' ? q.explanation : '',
-    });
+    questions.push({ question: q.question.trim(), type, answers, correct: q.correct, explanation });
   }
   return { questions };
 }
@@ -1400,8 +1411,8 @@ export default {
         const roomId = roomResult.meta.last_row_id;
         await env.DB.batch(questions.map((q, i) =>
           env.DB.prepare(
-            'INSERT INTO quiz_room_questions (room_id, sort_order, question, answers, correct, explanation) VALUES (?, ?, ?, ?, ?, ?)'
-          ).bind(roomId, i, q.question, JSON.stringify(q.answers), q.correct, q.explanation)
+            'INSERT INTO quiz_room_questions (room_id, sort_order, type, question, answers, correct, explanation) VALUES (?, ?, ?, ?, ?, ?, ?)'
+          ).bind(roomId, i, q.type ?? 'multiple_choice', q.question, JSON.stringify(q.answers), q.correct ?? null, q.explanation)
         ));
 
         return jsonResponse({ code, title, questionCount: questions.length }, 201);
@@ -1487,6 +1498,50 @@ export default {
         return jsonResponse({ ok: true });
       }
 
+      // PATCH /api/rooms/:code/answers/:answerId — instructor grades a free-response answer
+      const gradeAnswerMatch = path.match(/^\/api\/rooms\/([A-Z0-9]{4}-[A-Z0-9]{4})\/answers\/(\d+)$/);
+      if (gradeAnswerMatch && request.method === 'PATCH') {
+        const session = await requireRole(request, env, 'instructor');
+        if (session instanceof Response) return session;
+
+        const [, gradeCode, answerIdRaw] = gradeAnswerMatch;
+        const answerId = Number(answerIdRaw);
+
+        let body;
+        try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request body' }, 400); }
+        const { is_correct } = body ?? {};
+        if (is_correct !== 0 && is_correct !== 1) {
+          return jsonResponse({ error: 'is_correct must be 0 or 1' }, 400);
+        }
+
+        const answer = await env.DB.prepare(`
+          SELECT ans.id, ans.attempt_id, r.code, r.created_by
+          FROM quiz_room_answers ans
+          JOIN quiz_room_attempts att ON att.id = ans.attempt_id
+          JOIN quiz_rooms r ON r.id = att.room_id
+          WHERE ans.id = ?
+        `).bind(answerId).first();
+        if (!answer || answer.code !== gradeCode) return jsonResponse({ error: 'Answer not found' }, 404);
+        if (answer.created_by !== session.sub && session.role !== 'admin') {
+          return jsonResponse({ error: 'Forbidden' }, 403);
+        }
+
+        await env.DB.prepare('UPDATE quiz_room_answers SET is_correct = ? WHERE id = ?')
+          .bind(is_correct, answerId).run();
+
+        const scoreRow = await env.DB.prepare(
+          'SELECT COUNT(*) AS n FROM quiz_room_answers WHERE attempt_id = ? AND is_correct = 1'
+        ).bind(answer.attempt_id).first();
+        const pendingRow = await env.DB.prepare(
+          'SELECT COUNT(*) AS n FROM quiz_room_answers WHERE attempt_id = ? AND is_correct IS NULL'
+        ).bind(answer.attempt_id).first();
+
+        await env.DB.prepare('UPDATE quiz_room_attempts SET score = ? WHERE id = ?')
+          .bind(scoreRow.n, answer.attempt_id).run();
+
+        return jsonResponse({ ok: true, score: scoreRow.n, pendingCount: pendingRow.n });
+      }
+
       // Routes with a room code: /api/rooms/:code[/subpath]
       const roomCodeMatch = path.match(/^\/api\/rooms\/([A-Z0-9]{4}-[A-Z0-9]{4})(\/[a-z-]*)?$/);
       if (roomCodeMatch) {
@@ -1514,22 +1569,25 @@ export default {
 
           if (attempt) {
             const { results: ansRows } = await env.DB.prepare(`
-              SELECT a.question_id, a.selected, a.is_correct,
-                     q.question, q.answers, q.correct, q.explanation, q.sort_order
+              SELECT a.question_id, a.selected, a.response_text, a.is_correct,
+                     q.type, q.question, q.answers, q.correct, q.explanation, q.sort_order
               FROM quiz_room_answers a
               JOIN quiz_room_questions q ON q.id = a.question_id
               WHERE a.attempt_id = ?
               ORDER BY q.sort_order
             `).bind(attempt.id).all();
+            const pendingCount = (ansRows ?? []).filter(a => a.is_correct === null).length;
             return jsonResponse({
               room: { code: room.code, title: room.title },
               alreadyAttempted: true,
               attempt: {
                 score: attempt.score, total: attempt.total, completed_at: attempt.completed_at,
+                pendingCount,
                 answers: (ansRows ?? []).map(a => ({
-                  question_id: a.question_id, question: a.question,
+                  question_id: a.question_id, type: a.type, question: a.question,
                   answers: JSON.parse(a.answers), correct: a.correct,
-                  selected: a.selected, is_correct: a.is_correct, explanation: a.explanation,
+                  selected: a.selected, response_text: a.response_text,
+                  is_correct: a.is_correct, explanation: a.explanation,
                 })),
               },
             });
@@ -1537,13 +1595,13 @@ export default {
 
           // Return questions without correct answers
           const { results: questions } = await env.DB.prepare(
-            'SELECT id, sort_order, question, answers FROM quiz_room_questions WHERE room_id = ? ORDER BY sort_order'
+            'SELECT id, sort_order, type, question, answers FROM quiz_room_questions WHERE room_id = ? ORDER BY sort_order'
           ).bind(room.id).all();
           return jsonResponse({
             room: { code: room.code, title: room.title },
             alreadyAttempted: false,
             questions: (questions ?? []).map(q => ({
-              id: q.id, sort_order: q.sort_order,
+              id: q.id, sort_order: q.sort_order, type: q.type,
               question: q.question, answers: JSON.parse(q.answers),
             })),
           });
@@ -1563,20 +1621,23 @@ export default {
           if (!attempt) return jsonResponse({ attempt: null });
 
           const { results: ansRows } = await env.DB.prepare(`
-            SELECT a.question_id, a.selected, a.is_correct,
-                   q.question, q.answers, q.correct, q.explanation, q.sort_order
+            SELECT a.question_id, a.selected, a.response_text, a.is_correct,
+                   q.type, q.question, q.answers, q.correct, q.explanation, q.sort_order
             FROM quiz_room_answers a
             JOIN quiz_room_questions q ON q.id = a.question_id
             WHERE a.attempt_id = ?
             ORDER BY q.sort_order
           `).bind(attempt.id).all();
+          const pendingCount = (ansRows ?? []).filter(a => a.is_correct === null).length;
           return jsonResponse({
             attempt: {
               score: attempt.score, total: attempt.total, completed_at: attempt.completed_at,
+              pendingCount,
               answers: (ansRows ?? []).map(a => ({
-                question_id: a.question_id, question: a.question,
+                question_id: a.question_id, type: a.type, question: a.question,
                 answers: JSON.parse(a.answers), correct: a.correct,
-                selected: a.selected, is_correct: a.is_correct, explanation: a.explanation,
+                selected: a.selected, response_text: a.response_text,
+                is_correct: a.is_correct, explanation: a.explanation,
               })),
             },
           });
@@ -1607,23 +1668,34 @@ export default {
           if (!Array.isArray(answers)) return jsonResponse({ error: 'answers must be an array' }, 400);
 
           const { results: questions } = await env.DB.prepare(
-            'SELECT id, correct FROM quiz_room_questions WHERE room_id = ? ORDER BY sort_order'
+            'SELECT id, type, correct FROM quiz_room_questions WHERE room_id = ? ORDER BY sort_order'
           ).bind(room.id).all();
 
           if (answers.length !== questions.length) {
             return jsonResponse({ error: `Expected ${questions.length} answers, got ${answers.length}` }, 400);
           }
           for (let i = 0; i < answers.length; i++) {
-            if (typeof answers[i] !== 'number' || answers[i] < 0) {
+            const q = questions[i];
+            if (q.type === 'free_response') {
+              if (typeof answers[i] !== 'string') return jsonResponse({ error: `Answer at index ${i} must be text` }, 400);
+            } else if (typeof answers[i] !== 'number' || answers[i] < 0) {
               return jsonResponse({ error: `Answer at index ${i} is invalid` }, 400);
             }
           }
 
-          const scored = questions.map((q, i) => ({
-            question_id: q.id, selected: answers[i],
-            is_correct: answers[i] === q.correct ? 1 : 0,
-          }));
-          const score = scored.reduce((sum, s) => sum + s.is_correct, 0);
+          const scored = questions.map((q, i) => {
+            if (q.type === 'free_response') {
+              return {
+                question_id: q.id, selected: null,
+                response_text: answers[i].trim().slice(0, 5000), is_correct: null,
+              };
+            }
+            return {
+              question_id: q.id, selected: answers[i], response_text: null,
+              is_correct: answers[i] === q.correct ? 1 : 0,
+            };
+          });
+          const score = scored.reduce((sum, s) => sum + (s.is_correct === 1 ? 1 : 0), 0);
           const completedAt = Date.now();
 
           const attemptResult = await env.DB.prepare(
@@ -1632,22 +1704,23 @@ export default {
 
           await env.DB.batch(scored.map(s =>
             env.DB.prepare(
-              'INSERT INTO quiz_room_answers (attempt_id, question_id, selected, is_correct) VALUES (?, ?, ?, ?)'
-            ).bind(attemptResult.meta.last_row_id, s.question_id, s.selected, s.is_correct)
+              'INSERT INTO quiz_room_answers (attempt_id, question_id, selected, response_text, is_correct) VALUES (?, ?, ?, ?, ?)'
+            ).bind(attemptResult.meta.last_row_id, s.question_id, s.selected, s.response_text, s.is_correct)
           ));
 
           // Return full results (correct answers now revealed)
           const { results: fullQs } = await env.DB.prepare(
-            'SELECT id, sort_order, question, answers, correct, explanation FROM quiz_room_questions WHERE room_id = ? ORDER BY sort_order'
+            'SELECT id, sort_order, type, question, answers, correct, explanation FROM quiz_room_questions WHERE room_id = ? ORDER BY sort_order'
           ).bind(room.id).all();
 
+          const pendingCount = scored.filter(s => s.is_correct === null).length;
           return jsonResponse({
-            score, total: questions.length, completed_at: completedAt,
+            score, total: questions.length, completed_at: completedAt, pendingCount,
             answers: fullQs.map((q, i) => ({
-              question_id: q.id, question: q.question,
+              question_id: q.id, type: q.type, question: q.question,
               answers: JSON.parse(q.answers), correct: q.correct,
-              selected: scored[i].selected, is_correct: scored[i].is_correct,
-              explanation: q.explanation,
+              selected: scored[i].selected, response_text: scored[i].response_text,
+              is_correct: scored[i].is_correct, explanation: q.explanation,
             })),
           }, 201);
         }
@@ -1674,20 +1747,21 @@ export default {
           `).bind(room.id).all();
 
           const { results: questions } = await env.DB.prepare(
-            'SELECT id, sort_order, question, answers, correct, explanation FROM quiz_room_questions WHERE room_id = ? ORDER BY sort_order'
+            'SELECT id, sort_order, type, question, answers, correct, explanation FROM quiz_room_questions WHERE room_id = ? ORDER BY sort_order'
           ).bind(room.id).all();
 
           const detailedAttempts = await Promise.all((attempts ?? []).map(async att => {
             const { results: ansRows } = await env.DB.prepare(
-              'SELECT question_id, selected, is_correct FROM quiz_room_answers WHERE attempt_id = ?'
+              'SELECT id, question_id, selected, response_text, is_correct FROM quiz_room_answers WHERE attempt_id = ?'
             ).bind(att.id).all();
-            return { ...att, answers: ansRows ?? [] };
+            const pendingCount = (ansRows ?? []).filter(a => a.is_correct === null).length;
+            return { ...att, pendingCount, answers: ansRows ?? [] };
           }));
 
           return jsonResponse({
             room: { code: room.code, title: room.title, status: room.status },
             questions: (questions ?? []).map(q => ({
-              id: q.id, sort_order: q.sort_order, question: q.question,
+              id: q.id, sort_order: q.sort_order, type: q.type, question: q.question,
               answers: JSON.parse(q.answers), correct: q.correct, explanation: q.explanation,
             })),
             attempts: detailedAttempts,

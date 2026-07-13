@@ -1785,6 +1785,16 @@ footer {
 
 .quiz-add-answer { margin-top: 0.1rem; }
 
+.quiz-fr-note {
+  background: rgba(68,136,255,0.06);
+  border: 1px solid rgba(68,136,255,0.2);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
 .form-error {
   color: var(--danger);
   font-family: 'Share Tech Mono', monospace;
@@ -1986,7 +1996,7 @@ footer {
 /* Results summary grid */
 .results-summary-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 1rem;
   margin-bottom: 0.5rem;
 }
@@ -2073,6 +2083,23 @@ footer {
 
 .answer-correct .answer-choice { color: var(--accent); }
 .answer-wrong .answer-choice   { color: var(--danger); }
+
+.answer-row-fr {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid rgba(31, 31, 31, 0.5);
+  font-size: 0.85rem;
+}
+.answer-row-fr:last-child { border-bottom: none; }
+.answer-row-fr .answer-question { display: flex; align-items: center; gap: 0.3rem; }
+.answer-row-fr.answer-pending .answer-icon { color: #4488ff; }
+.answer-row-fr.answer-correct .answer-icon { color: var(--accent); }
+.answer-row-fr.answer-wrong   .answer-icon { color: var(--danger); }
+
+.grade-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
 
 /* Format guide (collapsible <details>) */
 .format-guide {
@@ -2399,10 +2426,37 @@ footer {
 .room-result-box { border-left: 3px solid var(--border); }
 .room-result-box.result-correct { border-left-color: var(--accent); }
 .room-result-box.result-wrong   { border-left-color: var(--danger); }
+.room-result-box.result-pending { border-left-color: #4488ff; }
 
 .result-icon { margin-right: 0.3rem; }
 .room-result-box.result-correct .result-icon { color: var(--accent); }
 .room-result-box.result-wrong   .result-icon { color: var(--danger); }
+.room-result-box.result-pending .result-icon { color: #4488ff; }
+
+.quiz-free-response-display {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-top: 0.5rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+}
+
+.quiz-pending-badge {
+  display: inline-block;
+  margin-top: 0.6rem;
+  background: rgba(68,136,255,0.1);
+  border: 1px solid rgba(68,136,255,0.35);
+  color: #4488ff;
+  border-radius: 20px;
+  padding: 0.2rem 0.65rem;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
 
 .room-already-banner {
   background: var(--surface);
@@ -2415,10 +2469,14 @@ footer {
   margin-bottom: 1.25rem;
 }
 
+.room-pending-banner {
+  border-color: rgba(68,136,255,0.35);
+  color: #4488ff;
+}
+
 /* Responsive */
 @media (max-width: 680px) {
   .instructor-form-grid { grid-template-columns: 1fr; }
-  .results-summary-grid { grid-template-columns: repeat(3, 1fr); }
   .room-actions { gap: 0.3rem; }
   .format-guide-body { grid-template-columns: 1fr; }
   .room-active-header { flex-direction: column; }
