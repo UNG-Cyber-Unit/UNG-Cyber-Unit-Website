@@ -1089,10 +1089,15 @@ async function requireRole(request, env, minRole) {
 
 // ─── Quiz Room Helpers ────────────────────────────────────────────────────────
 
+const MAX_QUESTION_LEN = 1000;
+const MAX_ANSWER_LEN = 300;
+const MAX_EXPLANATION_LEN = 2000;
+
 function generateRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const r = () => chars[Math.floor(Math.random() * chars.length)];
-  return `${r()}${r()}${r()}${r()}-${r()}${r()}${r()}${r()}`;
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  const r = i => chars[bytes[i] % chars.length];
+  return `${r(0)}${r(1)}${r(2)}${r(3)}-${r(4)}${r(5)}${r(6)}${r(7)}`;
 }
 
 function parseCSVLine(line) {
@@ -1129,8 +1134,10 @@ function parseCSV(text) {
     const row = parseCSVLine(lines[r]);
     const question = get(row, 'question');
     if (!question) continue;
+    if (question.length > MAX_QUESTION_LEN) return { error: `Row ${r}: question must be ${MAX_QUESTION_LEN} characters or fewer` };
     const type = get(row, 'type').toLowerCase().trim() === 'free_response' ? 'free_response' : 'multiple_choice';
     const explanation = get(row, 'explanation');
+    if (explanation.length > MAX_EXPLANATION_LEN) return { error: `Row ${r}: explanation must be ${MAX_EXPLANATION_LEN} characters or fewer` };
 
     if (type === 'free_response') {
       questions.push({ question, type, answers: [], correct: null, explanation });
@@ -1140,6 +1147,7 @@ function parseCSV(text) {
     const answers = ['answer_a', 'answer_b', 'answer_c', 'answer_d']
       .map(col => get(row, col)).filter(a => a !== '');
     if (answers.length < 2) return { error: `Row ${r}: need at least 2 non-empty answers` };
+    if (answers.some(a => a.length > MAX_ANSWER_LEN)) return { error: `Row ${r}: each answer must be ${MAX_ANSWER_LEN} characters or fewer` };
     const correct = parseInt(get(row, 'correct'), 10);
     if (isNaN(correct) || correct < 0 || correct >= answers.length) {
       return { error: `Row ${r}: "correct" must be 0–${answers.length - 1}` };
@@ -1161,8 +1169,14 @@ function validateJSONQuestions(raw) {
     if (typeof q.question !== 'string' || !q.question.trim()) {
       return { error: `Question ${i + 1}: question text is required` };
     }
+    if (q.question.trim().length > MAX_QUESTION_LEN) {
+      return { error: `Question ${i + 1}: question must be ${MAX_QUESTION_LEN} characters or fewer` };
+    }
     const type = q.type === 'free_response' ? 'free_response' : 'multiple_choice';
     const explanation = typeof q.explanation === 'string' ? q.explanation : '';
+    if (explanation.length > MAX_EXPLANATION_LEN) {
+      return { error: `Question ${i + 1}: explanation must be ${MAX_EXPLANATION_LEN} characters or fewer` };
+    }
 
     if (type === 'free_response') {
       questions.push({ question: q.question.trim(), type, answers: [], correct: null, explanation });
@@ -1174,6 +1188,9 @@ function validateJSONQuestions(raw) {
     }
     const answers = q.answers.map(a => String(a).trim());
     if (answers.some(a => !a)) return { error: `Question ${i + 1}: answer text cannot be empty` };
+    if (answers.some(a => a.length > MAX_ANSWER_LEN)) {
+      return { error: `Question ${i + 1}: each answer must be ${MAX_ANSWER_LEN} characters or fewer` };
+    }
     if (typeof q.correct !== 'number' || q.correct < 0 || q.correct >= answers.length) {
       return { error: `Question ${i + 1}: correct must be 0–${answers.length - 1}` };
     }
@@ -1364,6 +1381,7 @@ export default {
 
         const title = (formData.get('title') ?? '').trim();
         if (!title) return jsonResponse({ error: 'Room title is required' }, 400);
+        if (title.length > 200) return jsonResponse({ error: 'Room title must be 200 characters or fewer' }, 400);
 
         const visibility = (formData.get('visibility') ?? 'private').toString().toLowerCase();
         if (!['public', 'private'].includes(visibility)) {
@@ -1380,6 +1398,7 @@ export default {
 
         const file = formData.get('file');
         if (!file || typeof file.text !== 'function') return jsonResponse({ error: 'No file uploaded' }, 400);
+        if (file.size > 1_000_000) return jsonResponse({ error: 'Question file must be under 1MB' }, 400);
 
         const text = await file.text();
         const filename = (file.name ?? '').toLowerCase();

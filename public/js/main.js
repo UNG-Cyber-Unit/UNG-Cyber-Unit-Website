@@ -1709,7 +1709,7 @@ async function initInstructorPanel() {
     row.className = 'quiz-answer-row';
     row.innerHTML = `
       <input type="radio" class="quiz-answer-correct" aria-label="Mark as correct answer">
-      <input type="text" class="quiz-answer-text" maxlength="200">
+      <input type="text" class="quiz-answer-text" maxlength="300">
       <button type="button" class="quiz-answer-remove" aria-label="Remove answer">✕</button>`;
     return row;
   }
@@ -1766,7 +1766,7 @@ async function initInstructorPanel() {
       </div>
       <div class="form-group">
         <label>Question Text</label>
-        <textarea class="quiz-q-text" rows="2" placeholder="e.g. What does CIA stand for?"></textarea>
+        <textarea class="quiz-q-text" rows="2" maxlength="1000" placeholder="e.g. What does CIA stand for?"></textarea>
       </div>
       <div class="quiz-mc-fields">
         <div class="quiz-answers"></div>
@@ -1775,7 +1775,7 @@ async function initInstructorPanel() {
       <p class="quiz-fr-note" hidden>Students will type a free-text response. You'll grade each submission as correct/incorrect afterward.</p>
       <div class="form-group" style="margin-top:0.75rem;">
         <label class="quiz-explanation-label">Explanation <span class="form-hint">optional</span></label>
-        <textarea class="quiz-q-explanation" rows="2" placeholder="Shown to student after they answer"></textarea>
+        <textarea class="quiz-q-explanation" rows="2" maxlength="2000" placeholder="Shown to student after they answer"></textarea>
       </div>`;
     const answersWrap = card.querySelector('.quiz-answers');
     answersWrap.appendChild(createAnswerRow());
@@ -2219,8 +2219,11 @@ async function initInstructorPanel() {
         ...questions.map(q => gradeLabel(ansMap[q.id])),
       ];
     });
+    // Prefix a leading apostrophe on cells that could be interpreted as a formula
+    // by Excel/Sheets (CSV/formula injection) when the file is opened, not just viewed as text.
+    const csvSafe = v => /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
     const csv = [headers, ...rows]
-      .map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+      .map(row => row.map(c => `"${csvSafe(String(c)).replace(/"/g, '""')}"`).join(','))
       .join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
@@ -2406,7 +2409,7 @@ function renderRoomQuiz(questions, code, room) {
   container.innerHTML = questions.map((q, qi) => q.type === 'free_response' ? `
     <div class="quiz-box" id="rquiz-${qi}">
       <p class="quiz-question">${qi + 1}. ${escHtml(q.question)}</p>
-      <textarea class="quiz-free-response" data-qi="${qi}" rows="4"
+      <textarea class="quiz-free-response" data-qi="${qi}" rows="4" maxlength="5000"
         placeholder="Type your answer..." aria-label="Answer for question ${qi + 1}"></textarea>
     </div>` : `
     <div class="quiz-box" id="rquiz-${qi}">
