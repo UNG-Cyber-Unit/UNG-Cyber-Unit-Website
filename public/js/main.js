@@ -1236,6 +1236,12 @@ function isInstructor() {
 function updateAuthNav() {
   const navItem = document.getElementById('authNavItem');
   if (!navItem) return;
+
+  const joinBtn = `<div class="nav-dropdown" id="navJoinDropdown">
+      <button class="nav-dropdown-toggle" id="navJoinDropdownBtn" aria-label="Join menu" aria-expanded="false">☰</button>
+      <div class="nav-dropdown-menu" id="navJoinDropdownMenu" hidden><a href="/quiz" class="nav-dropdown-item">Join Room</a></div>
+    </div>`;
+
   if (currentUser) {
     const panelItems = [
       isInstructor() ? `<a href="/instructor" class="nav-dropdown-item">Instructor Panel</a>` : '',
@@ -1249,11 +1255,6 @@ function updateAuthNav() {
          </div>`
       : '';
 
-    const joinBtn = `<div class="nav-dropdown" id="navJoinDropdown">
-        <button class="nav-dropdown-toggle" id="navJoinDropdownBtn" aria-label="Join menu" aria-expanded="false">☰</button>
-        <div class="nav-dropdown-menu" id="navJoinDropdownMenu" hidden><a href="/quiz" class="nav-dropdown-item">Join Room</a></div>
-      </div>`;
-
     navItem.innerHTML = `
       ${joinBtn}
       ${wrenchBtn}
@@ -1262,12 +1263,15 @@ function updateAuthNav() {
 
     document.getElementById('logoutBtn').addEventListener('click', handleLogout);
 
-    wireNavDropdown('navJoinDropdownBtn', 'navJoinDropdownMenu');
     wireNavDropdown('navDropdownBtn', 'navDropdownMenu');
   } else {
-    navItem.innerHTML = `<button class="btn btn-sm" id="openAuthBtn">Sign In</button>`;
+    navItem.innerHTML = `
+      ${joinBtn}
+      <button class="btn btn-sm" id="openAuthBtn">Sign In</button>`;
     document.getElementById('openAuthBtn').addEventListener('click', () => openAuthModal('login'));
   }
+
+  wireNavDropdown('navJoinDropdownBtn', 'navJoinDropdownMenu');
 }
 
 function wireNavDropdown(btnId, menuId) {
@@ -1910,7 +1914,7 @@ async function initInstructorPanel() {
             return `
               <tr>
                 <td style="font-family:'Share Tech Mono',monospace;">${escHtml(r.title)}</td>
-                <td><code>${escHtml(r.code)}</code></td>
+                <td><code class="room-code-copy" data-code="${escHtml(r.code)}" title="Click to copy code" tabindex="0" role="button">${escHtml(r.code)}</code></td>
                 <td><span class="status-badge status-${isOpen ? 'open' : 'closed'}">${isOpen ? 'Open' : 'Closed'}</span></td>
                 <td><span class="status-badge status-${r.visibility === 'public' ? 'open' : 'closed'}">${r.visibility === 'public' ? 'Public' : 'Private'}</span></td>
                 <td style="text-align:center;color:var(--text-muted);">${r.question_count}</td>
@@ -1933,6 +1937,20 @@ async function initInstructorPanel() {
           btn.textContent = 'Copied!';
           setTimeout(() => { btn.textContent = 'Copy Link'; }, 2000);
         });
+      });
+    });
+
+    wrap.querySelectorAll('.room-code-copy').forEach(el => {
+      const copy = () => {
+        navigator.clipboard.writeText(el.dataset.code).then(() => {
+          const original = el.textContent;
+          el.textContent = 'Copied!';
+          setTimeout(() => { el.textContent = original; }, 1500);
+        });
+      };
+      el.addEventListener('click', copy);
+      el.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copy(); }
       });
     });
 

@@ -449,6 +449,17 @@ code {
   color: var(--accent);
 }
 
+.room-code-copy {
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.room-code-copy:hover,
+.room-code-copy:focus-visible {
+  background: #262626;
+  color: var(--text);
+  outline: none;
+}
+
 /* ─── Callout ────────────────────────────────────────────── */
 .callout {
   border-left: 3px solid;
