@@ -2074,6 +2074,19 @@ export default {
     }
 
     // ── API: list all topics (summary only) ──────────────────────────────────
+    // ── XML sitemap for search engines ────────────────────────────────────────
+    // Generated from the topics list so it stays in sync as topics are added.
+    if (path === '/sitemap.xml') {
+      const base = 'https://ungcyberunit.org';
+      const paths = ['/', '/about', '/resources', '/sop', ...topics.map(t => `/topic/${t.id}`)];
+      const body = `<?xml version="1.0" encoding="UTF-8"?>\n`
+        + `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`
+        + paths.map(p => `  <url><loc>${base}${p}</loc></url>`).join('\n')
+        + `\n</urlset>\n`;
+      const headers = addSecurityHeaders(new Headers({ 'Content-Type': 'application/xml; charset=utf-8' }));
+      return new Response(body, { headers });
+    }
+
     if (path === '/api/topics') {
       const summary = topics.map(({ id, title, icon, shortDesc, image, difficulty, readTime }) => ({
         id, title, icon, shortDesc, image, difficulty, readTime,
