@@ -28,6 +28,15 @@ Built with **Cloudflare Workers**, **D1**, and vanilla HTML/CSS/JS.
 
 Each topic includes reading content and a 3-question quiz with instant feedback.
 
+### Beginner Cyber Pathway
+
+`/start` is a guided, mentor-narrated starter path for people brand new to cyber. It
+groups the topics into six ordered stages (Start Here → Go Further), shown as a vertical
+connected-node path with the shared topic "module" cards. Signed-in learners get a
+progress bar, per-stage completion badges, a daily learning streak, "continue where you
+left off," and scroll-in motion (respecting `prefers-reduced-motion`). Each topic page
+also carries a mentor-voice hook and a plain-English key takeaway.
+
 ---
 
 ## Quiz Rooms
@@ -76,7 +85,7 @@ cybersec-basics/
 │   └── js/                # Client-side scripts
 ├── worker.js              # Cloudflare Worker — canonical entry point: routing, API, auth, security headers
 ├── server.js               # Legacy Express prototype — static topic pages only, no auth/DB/Quiz Rooms; not deployed, kept for optional local preview
-├── schema.sql              # D1 schema (users, quiz_results, quiz_rooms, quiz_room_questions, quiz_room_attempts, quiz_room_answers, room_lookup_failures)
+├── schema.sql              # D1 schema (users [incl. streak/last_active], quiz_results, quiz_rooms, quiz_room_questions, quiz_room_attempts, quiz_room_answers, room_lookup_failures)
 ├── wrangler.toml           # Cloudflare Workers configuration
 └── package.json
 ```
@@ -92,6 +101,7 @@ cybersec-basics/
 | Route | Description |
 |-------|-------------|
 | `/` | Home page with topic grid |
+| `/start` | **Beginner Cyber Pathway** — guided six-stage starter path with progress, badges, and streaks |
 | `/topic/:id` | Individual topic with quiz |
 | `/resources` | External learning resources |
 | `/about` | Unit overview and org chart |

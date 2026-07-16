@@ -33,11 +33,17 @@ injection). `server.js` is a legacy Express prototype — not deployed, ignore i
 
 **Adding a topic:** add it to the `topics` array in `worker.js`. The sitemap, the
 per-topic `<title>`/description/OG/`BreadcrumbList`, and the homepage grid all derive
-from that array automatically — no other edits needed.
+from that array automatically. Two things that do NOT auto-update:
+- **The Beginner Pathway** (`/start`): a new topic won't appear until you add its id to a
+  stage's `topicIds` in the `pathwayStages` array.
+- **Topic hook/takeaway**: add an entry in the `topicFraming` map (keyed by topic id) so
+  the topic page gets its mentor intro + key takeaway.
 
-**Homepage topic grid** is server-rendered by the worker (`homeTopicCards()`, injected
-on the `path === '/'` branch) so crawlers see it without JS; `main.js` then enhances it
-with per-user progress and leaves the server cards intact if that fetch fails.
+**Homepage topic grid** and the **`/start` pathway** are server-rendered by the worker
+(`homeTopicCards()` on `path === '/'`, `pathwayHtml()` on `path === '/start'`) so crawlers
+see the content without JS. `main.js`/`start.js` then enhance with per-user progress and
+leave the server-rendered cards intact if that fetch fails. Both share the `topicCard()`
+"module" component.
 
 ## Verify before committing
 Run `npx wrangler dev` and actually exercise the change (repo pattern: drive it in
