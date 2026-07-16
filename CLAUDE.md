@@ -21,9 +21,10 @@ injection). `server.js` is a legacy Express prototype — not deployed, ignore i
   route to `run_worker_first` in `wrangler.toml`** so it gets those headers. Do NOT
   add CSS/JS/image paths there — routing assets through the worker breaks their MIME
   type. Pages only.
-- If the page has an **inline `<script>`**, its sha256 must be in the CSP `script-src`
-  allowlist in `worker.js` (`addSecurityHeaders`) or it will be blocked once routed
-  through the worker.
+- **Never write inline `<script>` blocks.** The CSP `script-src` is `'self'` only (no
+  hash/nonce/unsafe-inline), so inline scripts are blocked. Put all JS in a
+  `public/js/*.js` file and load it with `<script src="/js/…">` — same-origin scripts
+  are allowed automatically and need no CSP changes ever.
 - If it should rank in search: **add its path to the sitemap** (the `paths` array in
   the `/sitemap.xml` route in `worker.js`) and give it a unique `<title>` +
   `<meta name="description">`.
