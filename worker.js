@@ -1000,6 +1000,17 @@ function topicMetaTags(topic) {
   const desc = escapeHtml(`${topic.shortDesc} A beginner cybersecurity lesson from the UNG Cyber Unit.`);
   const canonical = `https://ungcyberunit.org/topic/${topic.id}`;
   const image = 'https://ungcyberunit.org/images/CyberUnitLogo_Transparent.png';
+  // BreadcrumbList so search engines show Home › Core Topics › <topic> and can
+  // build sitelinks. `<` escaping prevents any "</script>" breakout.
+  const breadcrumb = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://ungcyberunit.org/' },
+      { '@type': 'ListItem', position: 2, name: 'Core Topics', item: 'https://ungcyberunit.org/#topics' },
+      { '@type': 'ListItem', position: 3, name: topic.title, item: canonical },
+    ],
+  }).replace(/</g, '\\u003c');
   return [
     `<title>${title}</title>`,
     `<meta name="description" content="${desc}">`,
@@ -1011,6 +1022,7 @@ function topicMetaTags(topic) {
     `<meta property="og:url" content="${canonical}">`,
     `<meta property="og:image" content="${image}">`,
     `<meta name="twitter:card" content="summary">`,
+    `<script type="application/ld+json">${breadcrumb}</script>`,
   ].join('\n  ');
 }
 
