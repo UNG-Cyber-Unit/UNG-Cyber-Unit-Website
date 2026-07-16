@@ -13,6 +13,24 @@ jobs:
         with:
           node-version: '24'
       - run: npm ci
-      - uses: cloudflare/wrangler-action@v3
+      - run: npm test
+      - name: Deploy Worker + assets
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # Pin wrangler to match local dev and be explicit about the command so
+          # the Worker *script* is always deployed (not just assets). If the API
+          # token lacks "Workers Scripts: Edit" this step fails loudly here.
+          wranglerVersion: '4.111.0'
+          command: deploy
+      - name: Verify the deployed Worker is live
+        run: |
+          # Hit the raw workers.dev URL (bypasses the zone's HTML cache) and
+          # confirm the server-rendered pathway is present. Fails the job if not.
+          url="https://ung-cyber-unit-website.joshuaacklen.workers.dev/start"
+          count=$(curl -s --max-time 20 "$url" | grep -c 'pw-stage' || true)
+          echo "pw-stage markers on $url: $count"
+          if [ "$count" -lt 1 ]; then
+            echo "::error::Deployed Worker did not server-render the pathway — deploy likely did not update the Worker script."
+            exit 1
+          fi
