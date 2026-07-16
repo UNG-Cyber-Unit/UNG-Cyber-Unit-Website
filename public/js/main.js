@@ -2531,13 +2531,21 @@ async function initJoinRoom() {
 async function loadPublicRooms() {
   const wrap = document.getElementById('publicRoomsWrap');
   if (!wrap) return;
+  const showMsg = text => {
+    wrap.innerHTML = `<p style="color:var(--danger);font-family:'Share Tech Mono',monospace;">${text}</p>`;
+  };
   try {
     const res = await fetch('/api/rooms/public');
+    // Guests are blocked server-side (member+ only) — give them a clear reason.
+    if (res.status === 403 || currentUser?.role === 'guest') {
+      showMsg('Cannot view public rooms as guest.');
+      return;
+    }
     if (!res.ok) throw new Error();
     const { results } = await res.json();
     renderPublicRooms(results ?? []);
   } catch {
-    wrap.innerHTML = `<p style="color:var(--danger);font-family:'Share Tech Mono',monospace;">Failed to load public rooms.</p>`;
+    showMsg('Failed to load public rooms.');
   }
 }
 
