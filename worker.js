@@ -2399,6 +2399,11 @@ export default {
         const assetResponse = await env.ASSETS.fetch(assetUrl.toString());
         if (assetResponse.ok) {
           const headers = addSecurityHeaders(new Headers(assetResponse.headers));
+          // These pages are worker-generated (SEO meta + server-rendered grids
+          // are injected per request). Don't inherit the static asset's
+          // cacheability, or the edge freezes a stale copy (e.g. an empty /start).
+          headers.delete('ETag');
+          headers.set('Cache-Control', 'no-store');
 
           // Inject per-topic SEO metadata into the shared topic.html head.
           const topic = topicPageMatch ? topics.find(t => t.id === path.split('/').pop()) : null;
