@@ -2165,4 +2165,16 @@ export default {
 
     return notFoundResponse();
   },
+
+  // Cron Trigger: prune expired brute-force rate-limit rows. Failed lookups
+  // already self-prune on write, so this just clears residual rows once traffic
+  // stops. Schedule is defined in wrangler.toml ([triggers] crons).
+  async scheduled(event, env, ctx) {
+    if (!env.DB) return;
+    ctx.waitUntil(
+      env.DB.prepare('DELETE FROM room_lookup_failures WHERE ts < ?')
+        .bind(Date.now() - ROOM_RL_WINDOW_MS)
+        .run()
+    );
+  },
 };
