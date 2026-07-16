@@ -1101,7 +1101,7 @@ function sessionCookie(token, maxAge) {
 
 // ─── Role Helpers ─────────────────────────────────────────────────────────────
 
-const ROLE_RANK = { member: 0, instructor: 1, admin: 2 };
+const ROLE_RANK = { guest: -1, member: 0, instructor: 1, admin: 2 };
 
 async function requireRole(request, env, minRole) {
   const session = await getSession(request, env.JWT_SECRET);
@@ -1304,6 +1304,32 @@ export default {
       // POST /api/auth/logout
       if (path === '/api/auth/logout' && request.method === 'POST') {
         return jsonResponse({ ok: true }, 200, { 'Set-Cookie': sessionCookie('', 0) });
+      }
+
+      // POST /api/auth/guest — create a temporary, permissionless guest account.
+      // Guests get their own throwaway user row (role 'guest', below member) so
+      // profile/progress work normally, but they can never reach instructor/admin.
+      if (path === '/api/auth/guest' && request.method === 'POST') {
+        if (!env.DB) return jsonResponse({ error: 'Database not configured' }, 503);
+        // Hyphenated name can't collide with real usernames (register allows [a-zA-Z0-9_] only).
+        const suffix = Array.from(crypto.getRandomValues(new Uint8Array(6)))
+          .map(b => b.toString(16).padStart(2, '0')).join('');
+        const username = `guest-${suffix}`;
+        // Random unguessable password hash — guests never log in by password.
+        const hash = await hashPassword(username + crypto.randomUUID());
+        const result = await env.DB.prepare(
+          'INSERT INTO users (username, password_hash, role, created_at) VALUES (?, ?, \'guest\', ?)'
+        ).bind(username, hash, Date.now()).run();
+
+        const token = await signJWT(
+          { sub: result.meta.last_row_id, username, role: 'guest', exp: Math.floor(Date.now() / 1000) + 24 * 3600 },
+          env.JWT_SECRET
+        );
+        return jsonResponse(
+          { id: result.meta.last_row_id, username, role: 'guest' },
+          201,
+          { 'Set-Cookie': sessionCookie(token, 24 * 3600) },
+        );
       }
 
       // GET /api/auth/me

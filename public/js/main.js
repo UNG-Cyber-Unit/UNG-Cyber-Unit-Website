@@ -1239,12 +1239,15 @@ function updateAuthNav() {
   const navItem = document.getElementById('authNavItem');
   if (!navItem) return;
 
-  // Single ☰ menu: Join Room for everyone, plus role-gated panels. Server
-  // routes still enforce these roles; this gating only controls visibility.
+  // Single ☰ menu: Join Room and Profile for everyone, role-gated panels, and a
+  // guest login for signed-out visitors. Server routes still enforce roles;
+  // this gating only controls visibility.
   const menuItems = [
     `<a href="/quiz" class="nav-dropdown-item">Join Room</a>`,
+    `<a href="/profile" class="nav-dropdown-item">Profile</a>`,
     isInstructor() ? `<a href="/instructor" class="nav-dropdown-item">Instructor Panel</a>` : '',
     currentUser?.role === 'admin' ? `<a href="/admin" class="nav-dropdown-item nav-dropdown-item--danger">Admin Panel</a>` : '',
+    !currentUser ? `<button type="button" class="nav-dropdown-item nav-dropdown-item--button" id="guestLoginItem">Continue as Guest</button>` : '',
   ].filter(Boolean).join('');
 
   const menuBtn = `<div class="nav-dropdown" id="navMenuDropdown">
@@ -1253,9 +1256,10 @@ function updateAuthNav() {
     </div>`;
 
   if (currentUser) {
+    const displayName = currentUser.role === 'guest' ? 'Guest' : currentUser.username;
     navItem.innerHTML = `
       ${menuBtn}
-      <a href="/profile" class="navbar-username" aria-label="View your profile"><img src="${escHtml(currentUser.avatar || DEFAULT_AVATAR)}" alt="" class="navbar-avatar">${escHtml(currentUser.username)}</a>
+      <a href="/profile" class="navbar-username" aria-label="View your profile"><img src="${escHtml(currentUser.avatar || DEFAULT_AVATAR)}" alt="" class="navbar-avatar">${escHtml(displayName)}</a>
       <button class="btn btn-sm" id="logoutBtn">Sign Out</button>`;
     document.getElementById('logoutBtn').addEventListener('click', handleLogout);
   } else {
@@ -1263,9 +1267,22 @@ function updateAuthNav() {
       ${menuBtn}
       <button class="btn btn-sm" id="openAuthBtn">Sign In</button>`;
     document.getElementById('openAuthBtn').addEventListener('click', () => openAuthModal('login'));
+    document.getElementById('guestLoginItem')?.addEventListener('click', handleGuestLogin);
   }
 
   wireNavDropdown('navMenuBtn', 'navMenuList');
+}
+
+async function handleGuestLogin() {
+  try {
+    const res = await fetch('/api/auth/guest', { method: 'POST' });
+    if (!res.ok) throw new Error();
+    currentUser = await res.json();
+    updateAuthNav();
+    window.location.reload();
+  } catch {
+    alert('Could not start a guest session. Please try again.');
+  }
 }
 
 function wireNavDropdown(btnId, menuId) {
@@ -2280,6 +2297,7 @@ async function loadProfileAccount() {
     const joined = profile.created_at
       ? new Date(profile.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
       : '—';
+    const displayName = profile.role === 'guest' ? 'Guest' : profile.username;
 
     accountWrap.innerHTML = `
       <div class="profile-account">
@@ -2294,7 +2312,7 @@ async function loadProfileAccount() {
         </div>
         <div class="results-summary-grid">
           <div class="results-stat">
-            <span class="results-stat-val">${escHtml(profile.username)}</span>
+            <span class="results-stat-val">${escHtml(displayName)}</span>
             <span class="results-stat-label">Username</span>
           </div>
           <div class="results-stat">

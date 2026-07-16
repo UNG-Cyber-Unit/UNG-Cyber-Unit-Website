@@ -1651,6 +1651,15 @@ footer {
   color: var(--danger);
 }
 
+/* A <button> styled to sit flush with the anchor menu items. */
+.nav-dropdown-item--button {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
 /* ─── Auth Modal ─────────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
