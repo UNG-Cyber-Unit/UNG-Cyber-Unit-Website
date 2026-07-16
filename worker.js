@@ -879,6 +879,67 @@ const topics = [
   },
 ];
 
+// ─── Beginner Cyber Pathway ───────────────────────────────────────────────────
+// A guided, mentor-narrated sequence over the topics above for someone brand new
+// to cyber. Ordered as an emotional arc: why → threats → defense → mechanics →
+// hands-on → future. `topicIds` reference the `topics` array (single source of
+// truth); the /start page renders each stage's topics as module cards.
+const pathwayStages = [
+  {
+    num: 1,
+    title: 'Start Here',
+    track: 'Everyone',
+    hook: "Everything in security stands on three simple ideas. Nail these and the rest clicks into place — so let's start right here.",
+    badge: { name: 'Foundations', icon: '🧱' },
+    topicIds: ['01'],
+  },
+  {
+    num: 2,
+    title: 'Know the Threats',
+    track: 'Everyone',
+    hook: "You can't defend against what you can't recognize. Let's meet the attacks you'll actually run into online.",
+    badge: { name: 'Threat Spotter', icon: '🎯' },
+    topicIds: ['02', '04'],
+  },
+  {
+    num: 3,
+    title: 'Protect Yourself',
+    track: 'Everyone',
+    hook: "Time to lock your own doors. These are the habits that keep you — and everyone who trusts you — safe starting today.",
+    badge: { name: 'Guardian', icon: '🛡️' },
+    topicIds: ['03', '07'],
+  },
+  {
+    num: 4,
+    title: 'Under the Hood',
+    track: 'Everyone',
+    hook: "Now that you care about staying safe, let's peek at how the internet actually moves — and hides — your data.",
+    badge: { name: 'Net Runner', icon: '🌐' },
+    topicIds: ['05', '06'],
+  },
+  {
+    num: 5,
+    title: 'Get Hands-On',
+    track: 'Aspiring Pro',
+    hook: "Ready to touch the tools the pros use every day? Don't worry — we'll take it one command at a time.",
+    badge: { name: 'Operator', icon: '💻' },
+    topicIds: ['08', '11'],
+  },
+  {
+    num: 6,
+    title: 'Go Further',
+    track: 'Aspiring Pro',
+    hook: "You've built a real foundation. Here's what happens when things break — and where this path can take your career.",
+    badge: { name: 'Pathfinder', icon: '🧭' },
+    topicIds: ['09', '10'],
+  },
+];
+
+// Resolve a stage's topic ids to their full topic objects, in order.
+function pathwayStageTopics(stage) {
+  return stage.topicIds.map(id => topics.find(t => t.id === id)).filter(Boolean);
+}
+
 // ─── Security Headers ─────────────────────────────────────────────────────────
 
 function addSecurityHeaders(headers) {
@@ -1026,13 +1087,11 @@ function topicMetaTags(topic) {
   ].join('\n  ');
 }
 
-// Server-rendered topic cards for the homepage so the grid's content is in the
-// HTML (crawlers and no-JS users see it). main.js re-renders these with per-user
-// progress when it loads, and leaves them intact if that fetch fails.
-function homeTopicCards() {
-  return topics.map(t => {
-    const title = escapeHtml(t.title);
-    return `<a href="/topic/${t.id}" class="card card-link" aria-label="${title}">
+// A single topic "module" card — the shared component used by both the homepage
+// grid and the pathway stages. `data-topic` lets client JS mark it complete.
+function topicCard(t) {
+  const title = escapeHtml(t.title);
+  return `<a href="/topic/${t.id}" class="card card-link" data-topic="${t.id}" aria-label="${title}">
           <div class="card-icon" aria-hidden="true">${t.icon}</div>
           <h3 class="card-title">${title}</h3>
           <p class="card-desc">${escapeHtml(t.shortDesc)}</p>
@@ -1041,7 +1100,44 @@ function homeTopicCards() {
             <span class="btn btn-sm" aria-hidden="true">Explore →</span>
           </div>
         </a>`;
-  }).join('\n        ');
+}
+
+// Server-rendered topic cards for the homepage so the grid's content is in the
+// HTML (crawlers and no-JS users see it). main.js re-renders these with per-user
+// progress when it loads, and leaves them intact if that fetch fails.
+function homeTopicCards() {
+  return topics.map(topicCard).join('\n        ');
+}
+
+// Server-rendered Beginner Pathway: stages as nodes on a connecting line, each
+// with its mentor hook, track tag, badge, and topic module cards. Client JS
+// (start.js) layers on progress, badges, streaks, and motion.
+function pathwayHtml() {
+  const slug = s => s.toLowerCase().replace(/[^a-z]+/g, '-');
+  const stages = pathwayStages.map(stage => {
+    const track = slug(stage.track);
+    const modules = pathwayStageTopics(stage).map(topicCard).join('\n            ');
+    const ids = stage.topicIds.join(' ');
+    return `      <li class="pw-stage" data-stage="${stage.num}" data-track="${track}" data-topics="${ids}" data-badge="${escapeHtml(stage.badge.name)}">
+        <div class="pw-node" aria-hidden="true"><span class="pw-node-num">${stage.num}</span></div>
+        <div class="pw-stage-body">
+          <div class="pw-stage-head">
+            <span class="pw-kicker">Stage ${stage.num}</span>
+            <h2 class="pw-stage-title">${escapeHtml(stage.title)}</h2>
+            <span class="pw-track pw-track--${track}">${escapeHtml(stage.track)}</span>
+          </div>
+          <p class="pw-hook">${escapeHtml(stage.hook)}</p>
+          <div class="pw-badge" title="Complete this stage to earn the ${escapeHtml(stage.badge.name)} badge">
+            <span class="pw-badge-icon" aria-hidden="true">${stage.badge.icon}</span>
+            <span class="pw-badge-name">${escapeHtml(stage.badge.name)}</span>
+          </div>
+          <div class="pw-modules topic-grid">
+            ${modules}
+          </div>
+        </div>
+      </li>`;
+  }).join('\n');
+  return `<ol class="pathway">\n${stages}\n    </ol>`;
 }
 
 // ─── Auth & Progress Helpers ─────────────────────────────────────────────────
@@ -2156,7 +2252,7 @@ export default {
     // Generated from the topics list so it stays in sync as topics are added.
     if (path === '/sitemap.xml') {
       const base = 'https://ungcyberunit.org';
-      const paths = ['/', '/about', '/resources', '/sop', ...topics.map(t => `/topic/${t.id}`)];
+      const paths = ['/', '/start', '/about', '/resources', '/sop', ...topics.map(t => `/topic/${t.id}`)];
       const body = `<?xml version="1.0" encoding="UTF-8"?>\n`
         + `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`
         + paths.map(p => `  <url><loc>${base}${p}</loc></url>`).join('\n')
@@ -2200,6 +2296,7 @@ export default {
       '/admin': '/admin',
       '/quiz': '/quiz',
       '/profile': '/profile',
+      '/start': '/start',
     };
 
     // topic/:id — any path matching /topic/<something>
@@ -2247,6 +2344,15 @@ export default {
               .replace('<!-- Populated by main.js -->', homeTopicCards())
               .replace('<strong id="statTopics">—</strong>', `<strong id="statTopics">${topics.length}</strong>`)
               .replace('<strong id="statQuizzes">—</strong>', `<strong id="statQuizzes">${topics.length}</strong>`);
+            headers.delete('Content-Length');
+            headers.set('Content-Type', 'text/html; charset=utf-8');
+            return new Response(html, { status: assetResponse.status, headers });
+          }
+
+          // Server-render the Beginner Pathway into the /start page.
+          if (path === '/start') {
+            const html = (await assetResponse.text())
+              .replace('<!-- PATHWAY -->', pathwayHtml());
             headers.delete('Content-Length');
             headers.set('Content-Type', 'text/html; charset=utf-8');
             return new Response(html, { status: assetResponse.status, headers });

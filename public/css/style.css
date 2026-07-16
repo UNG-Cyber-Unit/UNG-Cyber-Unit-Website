@@ -12,6 +12,7 @@
   --accent:      #00ff88;
   --accent-dim:  #00cc6a;
   --text:        #e0e0e0;
+  --text-soft:   #b3b3b3;
   --text-muted:  #666666;
   --danger:      #ff4444;
   --warn:        #ffaa00;
@@ -2622,4 +2623,186 @@ footer {
   .answer-choice { grid-column: 2; }
   .quiz-entry-input-wrap { flex-direction: column; }
   .room-score-card { gap: 0.75rem; }
+}
+
+/* ═══ Beginner Pathway (/start) ═══════════════════════════════ */
+
+/* Intro — reading copy is sans (default), accents stay mono */
+.pw-intro { margin: 1rem 0 2.5rem; }
+.pw-boot {
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--accent);
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+  opacity: 0.85;
+}
+.pw-title {
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--text);
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  margin-bottom: 1rem;
+}
+.pw-lede {
+  color: var(--text-soft);
+  font-size: 1.05rem;
+  line-height: 1.7;
+  max-width: 640px;
+}
+
+/* Status: progress bar + streak + resume */
+.pw-status { margin-top: 1.75rem; max-width: 640px; }
+.pw-progress-track {
+  height: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.pw-progress-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  border-radius: 999px;
+  transition: width 0.9s ease;
+  box-shadow: 0 0 12px rgba(0, 255, 136, 0.5);
+}
+.pw-progress-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
+.pw-streak {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--warn);
+  margin-top: 0.4rem;
+}
+.pw-resume { margin-top: 1rem; }
+
+/* The path + connecting line */
+.pathway { list-style: none; margin: 0; padding: 0; position: relative; }
+.pathway::before {
+  content: '';
+  position: absolute;
+  left: 22px;
+  top: 12px;
+  bottom: 12px;
+  width: 2px;
+  background: linear-gradient(var(--border), var(--accent-dim), var(--border));
+  opacity: 0.5;
+}
+.pw-stage { position: relative; padding: 0 0 2.75rem 68px; min-height: 46px; }
+
+/* Node */
+.pw-node {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
+}
+.pw-node-num {
+  font-family: 'Share Tech Mono', monospace;
+  font-weight: bold;
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  transition: color 0.3s;
+}
+.pw-stage.is-active .pw-node {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(0, 255, 136, 0.12), 0 0 18px rgba(0, 255, 136, 0.4);
+  animation: pwPulse 2.2s ease-in-out infinite;
+}
+.pw-stage.is-active .pw-node-num { color: var(--accent); }
+.pw-stage.is-done .pw-node { border-color: var(--accent); background: var(--accent); }
+.pw-stage.is-done .pw-node-num { display: none; }
+.pw-stage.is-done .pw-node::after {
+  content: '✓';
+  color: var(--bg);
+  font-size: 1.35rem;
+  font-weight: bold;
+  line-height: 1;
+}
+@keyframes pwPulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(0, 255, 136, 0.12), 0 0 18px rgba(0, 255, 136, 0.35); }
+  50%      { box-shadow: 0 0 0 6px rgba(0, 255, 136, 0.06), 0 0 26px rgba(0, 255, 136, 0.55); }
+}
+
+/* Stage head */
+.pw-stage-head { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.pw-kicker {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.pw-stage-title { font-family: 'Share Tech Mono', monospace; font-size: 1.25rem; color: var(--text); margin: 0; }
+.pw-track {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid;
+}
+.pw-track--everyone { color: var(--accent); border-color: rgba(0, 255, 136, 0.4); background: rgba(0, 255, 136, 0.08); }
+.pw-track--aspiring-pro { color: var(--warn); border-color: rgba(255, 170, 0, 0.4); background: rgba(255, 170, 0, 0.08); }
+.pw-hook { color: var(--text-soft); line-height: 1.65; margin: 0 0 1rem; max-width: 620px; }
+
+/* Badge (dim/locked by default, lights up when the stage is done) */
+.pw-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  margin-bottom: 1.1rem;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  opacity: 0.7;
+  transition: all 0.3s;
+}
+.pw-badge-icon { filter: grayscale(1); opacity: 0.6; transition: all 0.3s; }
+.pw-stage.is-done .pw-badge {
+  border-style: solid;
+  border-color: rgba(0, 255, 136, 0.4);
+  background: rgba(0, 255, 136, 0.08);
+  color: var(--accent);
+  opacity: 1;
+}
+.pw-stage.is-done .pw-badge-icon { filter: none; opacity: 1; }
+
+/* Module cards inside a stage */
+.pw-modules { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); margin-top: 0; }
+
+/* Finish / what's-next */
+.pw-finish {
+  margin-top: 1.5rem;
+  padding: 2rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  text-align: center;
+}
+.pw-finish-title { font-family: 'Share Tech Mono', monospace; color: var(--accent); font-size: 1.3rem; margin-bottom: 0.75rem; }
+.pw-finish-copy { color: var(--text-soft); line-height: 1.7; max-width: 560px; margin: 0 auto 1.5rem; }
+.pw-finish-links { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+
+@media (max-width: 600px) {
+  .pw-stage { padding-left: 56px; }
+  .pw-node { width: 40px; height: 40px; }
+  .pathway::before { left: 19px; }
 }

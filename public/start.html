@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Beginner Cyber Pathway — UNG Cyber Unit</title>
+  <meta name="description" content="New to cybersecurity? Follow the UNG Cyber Unit's guided Beginner Pathway — six mentor-led stages from the basics to hands-on skills, at your own pace.">
+  <link rel="canonical" href="https://ungcyberunit.org/start">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="UNG Cyber Unit">
+  <meta property="og:title" content="Beginner Cyber Pathway — UNG Cyber Unit">
+  <meta property="og:description" content="New to cybersecurity? Follow the UNG Cyber Unit's guided Beginner Pathway — six mentor-led stages from the basics to hands-on skills, at your own pace.">
+  <meta property="og:url" content="https://ungcyberunit.org/start">
+  <meta property="og:image" content="https://ungcyberunit.org/images/CyberUnitLogo_Transparent.png">
+  <meta property="og:image:alt" content="UNG Cyber Unit logo">
+  <meta name="twitter:card" content="summary">
+
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- ─── Navbar ──────────────────────────────────────────── -->
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+    <div class="container">
+      <a href="/" class="navbar-logo"><img src="/images/CyberUnitLogo_Transparent.png" alt="CyberUnit @ UNG" class="navbar-logo-img"><span class="navbar-logo-text">[ CyberUnit @ UNG ]</span></a>
+      <button class="hamburger" id="hamburger" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="navbar-links" id="navLinks">
+        <li><a href="/">Home</a></li>
+        <li><a href="/resources">Resources</a></li>
+        <li><a href="/about">About</a></li>
+        <li id="authNavItem"></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="page-body">
+    <div class="container" style="max-width: 900px;">
+
+      <!-- ─── Intro ──────────────────────────────────────── -->
+      <header class="pw-intro">
+        <p class="pw-boot" aria-hidden="true">&gt; initializing beginner pathway_</p>
+        <h1 class="pw-title">Your Beginner Cyber Pathway</h1>
+        <p class="pw-lede">
+          New to all of this? You're in exactly the right place. I'll walk you through cybersecurity
+          one step at a time — no experience needed, no jargon dumps, no pressure. Start at the top and
+          work your way down: each stage builds on the last, and you'll earn a badge for every one you
+          finish. Ready? Let's go.
+        </p>
+
+        <!-- Progress + streak (populated by start.js) -->
+        <div class="pw-status" id="pwStatus" hidden>
+          <div class="pw-progress">
+            <div class="pw-progress-track"><div class="pw-progress-fill" id="pwProgressFill"></div></div>
+            <p class="pw-progress-label" id="pwProgressLabel"></p>
+          </div>
+          <p class="pw-streak" id="pwStreak" hidden></p>
+          <a class="btn btn-primary pw-resume" id="pwResume" hidden></a>
+        </div>
+      </header>
+
+      <!-- ─── Pathway (server-rendered by the worker) ──────── -->
+      <!-- PATHWAY -->
+
+      <!-- ─── What's next ────────────────────────────────── -->
+      <section class="pw-finish" aria-label="Where this path leads">
+        <h2 class="pw-finish-title">Where this path leads</h2>
+        <p class="pw-finish-copy">
+          Finish the pathway and you won't just "know some cyber" — you'll have the exact foundation
+          every analyst, defender, and ethical hacker starts from. When you're ready for the next step,
+          here's where to go.
+        </p>
+        <div class="pw-finish-links">
+          <a href="/topic/10" class="btn">Explore cyber careers →</a>
+          <a href="/resources" class="btn">Browse resources →</a>
+          <a href="/quiz" class="btn">Join a live quiz room →</a>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ─── Footer ────────────────────────────────────────────── -->
+  <footer>
+    CyberUnit @ UNG | Cybersecurity Intro Class | Built on Cloudflare Workers
+  </footer>
+
+  <script src="/js/main.js"></script>
+  <script src="/js/start.js"></script>
+</body>
+</html>
