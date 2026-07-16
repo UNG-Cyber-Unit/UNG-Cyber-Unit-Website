@@ -1542,6 +1542,16 @@ footer {
   font-family: 'Share Tech Mono', monospace;
   font-size: 0.8rem;
   color: var(--accent);
+  text-decoration: none;
+}
+
+a.navbar-username:hover,
+a.navbar-username:focus-visible {
+  text-decoration: underline;
+}
+
+.room-card--muted {
+  opacity: 0.65;
 }
 
 /* ─── Nav Dropdown (wrench) ──────────────────────────────── */

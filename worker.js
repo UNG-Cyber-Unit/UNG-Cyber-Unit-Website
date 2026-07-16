@@ -1319,6 +1319,37 @@ export default {
       }
     }
 
+    // ── Profile API ──────────────────────────────────────────────────────────
+    // GET /api/profile — account details + quiz room attempt history
+    if (path === '/api/profile' && request.method === 'GET') {
+      if (!env.JWT_SECRET || !env.DB) return jsonResponse({ error: 'Server not configured' }, 503);
+      const session = await getSession(request, env.JWT_SECRET);
+      if (!session) return jsonResponse({ error: 'Not authenticated' }, 401);
+
+      const user = await env.DB.prepare(
+        'SELECT id, username, role, created_at FROM users WHERE id = ?'
+      ).bind(session.sub).first();
+      if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
+
+      const { results: roomAttempts } = await env.DB.prepare(`
+        SELECT r.title, r.code, a.score, a.total, a.completed_at,
+               (SELECT COUNT(*) FROM quiz_room_answers ans
+                 WHERE ans.attempt_id = a.id AND ans.is_correct IS NULL) AS pending
+        FROM quiz_room_attempts a
+        JOIN quiz_rooms r ON r.id = a.room_id
+        WHERE a.user_id = ?
+        ORDER BY a.completed_at DESC
+      `).bind(session.sub).all();
+
+      return jsonResponse({
+        id: user.id,
+        username: user.username,
+        role: user.role ?? 'member',
+        created_at: user.created_at,
+        roomAttempts: roomAttempts ?? [],
+      });
+    }
+
     // ── Admin API ────────────────────────────────────────────────────────────
     if (path.startsWith('/api/admin/')) {
       if (!env.JWT_SECRET || !env.DB) return jsonResponse({ error: 'Server not configured' }, 503);
@@ -1916,6 +1947,7 @@ export default {
       '/instructor': '/instructor',
       '/admin': '/admin',
       '/quiz': '/quiz',
+      '/profile': '/profile',
     };
 
     // topic/:id — any path matching /topic/<something>

@@ -1258,7 +1258,7 @@ function updateAuthNav() {
     navItem.innerHTML = `
       ${joinBtn}
       ${wrenchBtn}
-      <span class="navbar-username">${escHtml(currentUser.username)}</span>
+      <a href="/profile" class="navbar-username" aria-label="View your profile">${escHtml(currentUser.username)}</a>
       <button class="btn btn-sm" id="logoutBtn">Sign Out</button>`;
 
     document.getElementById('logoutBtn').addEventListener('click', handleLogout);
@@ -2255,6 +2255,134 @@ async function initInstructorPanel() {
 // ─── Init ──────────────────────────────────────────────────────────────────────
 
 // ─── Join Room Page ────────────────────────────────────────────
+// ─── Profile Page ─────────────────────────────────────────────────────────────
+
+async function initProfilePage() {
+  const loginGate = document.getElementById('loginGate');
+  const content   = document.getElementById('profileContent');
+
+  if (!currentUser) {
+    if (loginGate) loginGate.hidden = false;
+    document.getElementById('loginGateBtn')?.addEventListener('click', () => openAuthModal('login'));
+    return;
+  }
+
+  if (content) content.hidden = false;
+  await Promise.all([
+    loadProfileAccount(),
+    loadProfileProgress(),
+  ]);
+}
+
+async function loadProfileAccount() {
+  const accountWrap = document.getElementById('accountWrap');
+  const historyWrap = document.getElementById('roomHistoryWrap');
+  if (!accountWrap) return;
+  try {
+    const res = await fetch('/api/profile');
+    if (!res.ok) throw new Error();
+    const profile = await res.json();
+
+    const joined = profile.created_at
+      ? new Date(profile.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+      : '—';
+
+    accountWrap.innerHTML = `
+      <div class="results-summary-grid">
+        <div class="results-stat">
+          <span class="results-stat-val">${escHtml(profile.username)}</span>
+          <span class="results-stat-label">Username</span>
+        </div>
+        <div class="results-stat">
+          <span class="results-stat-val">${escHtml(profile.role)}</span>
+          <span class="results-stat-label">Role</span>
+        </div>
+        <div class="results-stat">
+          <span class="results-stat-val" style="font-size:1.1rem;">${escHtml(joined)}</span>
+          <span class="results-stat-label">Member Since</span>
+        </div>
+      </div>`;
+
+    renderProfileRoomHistory(profile.roomAttempts ?? []);
+  } catch {
+    accountWrap.innerHTML = `<p style="color:var(--danger);font-family:'Share Tech Mono',monospace;">Failed to load account info.</p>`;
+    if (historyWrap) historyWrap.innerHTML = `<p style="color:var(--danger);font-family:'Share Tech Mono',monospace;">Failed to load quiz room history.</p>`;
+  }
+}
+
+function renderProfileRoomHistory(attempts) {
+  const wrap = document.getElementById('roomHistoryWrap');
+  if (!wrap) return;
+  if (!attempts.length) {
+    wrap.innerHTML = `
+      <div style="text-align:center;padding:2rem 1rem;color:var(--text-muted);font-family:'Share Tech Mono',monospace;background:var(--surface);border:1px solid var(--border);border-radius:6px;">
+        <p>No quiz room attempts yet. <a href="/quiz">Join a room</a> to get started.</p>
+      </div>`;
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="public-room-grid">
+      ${attempts.map(a => {
+        const pct = a.total > 0 ? Math.round((a.score / a.total) * 100) : 0;
+        const pendingBadge = a.pending > 0
+          ? ` <span class="status-badge status-open" title="Awaiting instructor review">${a.pending} pending</span>`
+          : '';
+        const when = new Date(a.completed_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        return `
+        <div class="room-card">
+          <div class="room-card-title">${escHtml(a.title)}</div>
+          <div class="room-card-meta">${a.score}/${a.total} (${pct}%)${pendingBadge} · ${escHtml(when)}</div>
+          <div class="room-card-footer">
+            <code>${escHtml(a.code)}</code>
+            <a href="/quiz/${escHtml(a.code)}" class="btn btn-sm">View Result</a>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+async function loadProfileProgress() {
+  const wrap = document.getElementById('progressWrap');
+  if (!wrap) return;
+  try {
+    const [topicsRes, progressRes] = await Promise.all([
+      fetch('/api/topics'),
+      fetch('/api/progress'),
+    ]);
+    if (!topicsRes.ok || !progressRes.ok) throw new Error();
+    const topics = await topicsRes.json();
+    const { results } = await progressRes.json();
+
+    const progressMap = {};
+    for (const r of (results ?? [])) progressMap[r.topic_id] = r;
+    const completed = topics.filter(t => progressMap[t.id]).length;
+
+    wrap.innerHTML = `
+      <p style="color:var(--text-muted);font-family:'Share Tech Mono',monospace;font-size:0.85rem;margin:0 0 1rem;">
+        ${completed} of ${topics.length} topic quizzes completed
+      </p>
+      <div class="public-room-grid">
+        ${topics.map(t => {
+          const prog = progressMap[t.id];
+          const scoreText = prog
+            ? `${prog.score}/${prog.total}${prog.score === prog.total ? ' <span class="progress-star" aria-hidden="true">★</span>' : ''}`
+            : 'Not attempted';
+          return `
+          <div class="room-card${prog ? '' : ' room-card--muted'}">
+            <div class="room-card-title">${t.icon} ${escHtml(t.title)}</div>
+            <div class="room-card-meta">${scoreText}</div>
+            <div class="room-card-footer">
+              <span></span>
+              <a href="/topic/${t.id}" class="btn btn-sm">${prog ? 'Review' : 'Start'}</a>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  } catch {
+    wrap.innerHTML = `<p style="color:var(--danger);font-family:'Share Tech Mono',monospace;">Failed to load progress.</p>`;
+  }
+}
+
 async function initJoinRoom() {
   const loginGate  = document.getElementById('loginGate');
   const joinContent = document.getElementById('joinContent');
@@ -2579,6 +2707,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderTopicPage();
   } else if (window.location.pathname === '/quiz') {
     initJoinRoom();
+  } else if (window.location.pathname === '/profile') {
+    initProfilePage();
   } else if (window.location.pathname.startsWith('/quiz/')) {
     initQuizRoom();
   } else if (window.location.pathname === '/instructor') {

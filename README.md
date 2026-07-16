@@ -96,6 +96,7 @@ cybersec-basics/
 | `/instructor` | Instructor panel — create/manage Quiz Rooms, grade free responses |
 | `/quiz` | **Join Room** — browse public Quiz Rooms, or enter a private room code |
 | `/quiz/:code` | Student — take a live Quiz Room / view your result |
+| `/profile` | Logged-in user's profile — account info, topic progress, Quiz Room history (click your username in the navbar) |
 
 ### API
 
@@ -105,6 +106,7 @@ cybersec-basics/
 | `/api/topic/:id` | JSON data for a single topic |
 | `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/me` | Account auth |
 | `/api/progress` | Logged-in user's per-topic quiz progress |
+| `/api/profile` | Logged-in user's account details + Quiz Room attempt history |
 | `/api/admin/users` | Admin — list/manage users |
 | `/api/rooms` (POST/GET) | Instructor — create a room / list your rooms |
 | `/api/rooms/public` | Any logged-in member — browse open public rooms |
