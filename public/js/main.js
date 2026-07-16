@@ -107,16 +107,16 @@ async function renderTopicGrid() {
            </div>`
         : '';
       return `
-        <article class="card${prog ? ' card-completed' : ''}" aria-label="${escHtml(t.title)}">
+        <a href="/topic/${t.id}" class="card card-link${prog ? ' card-completed' : ''}" aria-label="${escHtml(t.title)}">
           ${progressBadge}
           <div class="card-icon" aria-hidden="true">${t.icon}</div>
           <h3 class="card-title">${escHtml(t.title)}</h3>
           <p class="card-desc">${escHtml(t.shortDesc)}</p>
           <div class="card-footer">
             <span class="badge badge-beginner">${escHtml(t.difficulty)}</span>
-            <a href="/topic/${t.id}" class="btn btn-sm" aria-label="Explore ${escHtml(t.title)}">Explore →</a>
+            <span class="btn btn-sm" aria-hidden="true">Explore →</span>
           </div>
-        </article>`;
+        </a>`;
     }).join('');
   } catch (err) {
     grid.innerHTML = '<p style="color:var(--danger);font-family:\'Share Tech Mono\',monospace;">Failed to load topics.</p>';
@@ -2486,16 +2486,16 @@ async function loadProfileProgress() {
                </div>`
             : '';
           return `
-            <article class="card${prog ? ' card-completed' : ''}" aria-label="${escHtml(t.title)}">
+            <a href="/topic/${t.id}" class="card card-link${prog ? ' card-completed' : ''}" aria-label="${escHtml(t.title)}">
               ${progressBadge}
               <div class="card-icon" aria-hidden="true">${t.icon}</div>
               <h3 class="card-title">${escHtml(t.title)}</h3>
               <p class="card-desc">${escHtml(t.shortDesc)}</p>
               <div class="card-footer">
                 <span class="badge badge-beginner">${escHtml(t.difficulty)}</span>
-                <a href="/topic/${t.id}" class="btn btn-sm" aria-label="Explore ${escHtml(t.title)}">Explore →</a>
+                <span class="btn btn-sm" aria-hidden="true">Explore →</span>
               </div>
-            </article>`;
+            </a>`;
         }).join('')}
       </div>`;
   } catch {

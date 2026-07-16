@@ -334,6 +334,13 @@ body > main,
   border-color: rgba(0, 255, 136, 0.2);
 }
 
+/* Whole-card link: the entire topic box is clickable. */
+a.card-link {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
 .card-icon {
   font-size: 2rem;
   margin-bottom: 0.75rem;
