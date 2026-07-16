@@ -1268,7 +1268,12 @@ export default {
       if (path === '/api/auth/me' && request.method === 'GET') {
         const session = await getSession(request, env.JWT_SECRET);
         if (!session) return jsonResponse({ error: 'Not authenticated' }, 401);
-        return jsonResponse({ id: session.sub, username: session.username, role: session.role ?? 'member' });
+        let avatar = null;
+        if (env.DB) {
+          const row = await env.DB.prepare('SELECT avatar FROM users WHERE id = ?').bind(session.sub).first();
+          avatar = row?.avatar ?? null;
+        }
+        return jsonResponse({ id: session.sub, username: session.username, role: session.role ?? 'member', avatar });
       }
 
       // GET /api/progress  — returns [] if not authenticated (graceful for logged-out users)
@@ -1327,7 +1332,7 @@ export default {
       if (!session) return jsonResponse({ error: 'Not authenticated' }, 401);
 
       const user = await env.DB.prepare(
-        'SELECT id, username, role, created_at FROM users WHERE id = ?'
+        'SELECT id, username, role, avatar, created_at FROM users WHERE id = ?'
       ).bind(session.sub).first();
       if (!user) return jsonResponse({ error: 'Not authenticated' }, 401);
 
@@ -1345,9 +1350,35 @@ export default {
         id: user.id,
         username: user.username,
         role: user.role ?? 'member',
+        avatar: user.avatar ?? null,
         created_at: user.created_at,
         roomAttempts: roomAttempts ?? [],
       });
+    }
+
+    // POST /api/profile/avatar — set profile picture (small data-URL image)
+    // DELETE /api/profile/avatar — reset to default
+    if (path === '/api/profile/avatar' && (request.method === 'POST' || request.method === 'DELETE')) {
+      if (!env.JWT_SECRET || !env.DB) return jsonResponse({ error: 'Server not configured' }, 503);
+      const session = await getSession(request, env.JWT_SECRET);
+      if (!session) return jsonResponse({ error: 'Not authenticated' }, 401);
+
+      if (request.method === 'DELETE') {
+        await env.DB.prepare('UPDATE users SET avatar = NULL WHERE id = ?').bind(session.sub).run();
+        return jsonResponse({ ok: true, avatar: null });
+      }
+
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request body' }, 400); }
+      const { avatar } = body ?? {};
+      if (typeof avatar !== 'string') return jsonResponse({ error: 'Avatar image required' }, 400);
+      if (avatar.length > 150_000) return jsonResponse({ error: 'Image too large' }, 400);
+      if (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(avatar)) {
+        return jsonResponse({ error: 'Invalid image format' }, 400);
+      }
+
+      await env.DB.prepare('UPDATE users SET avatar = ? WHERE id = ?').bind(avatar, session.sub).run();
+      return jsonResponse({ ok: true, avatar });
     }
 
     // ── Admin API ────────────────────────────────────────────────────────────

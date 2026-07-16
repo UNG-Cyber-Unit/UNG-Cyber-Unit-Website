@@ -7,7 +7,9 @@
 
 // ─── Auth State ───────────────────────────────────────────────────────────────
 
-let currentUser = null; // { username, role } or null
+let currentUser = null; // { username, role, avatar } or null
+
+const DEFAULT_AVATAR = '/images/CyberUnitLogo_Transparent.png';
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
@@ -1258,7 +1260,7 @@ function updateAuthNav() {
     navItem.innerHTML = `
       ${joinBtn}
       ${wrenchBtn}
-      <a href="/profile" class="navbar-username" aria-label="View your profile">${escHtml(currentUser.username)}</a>
+      <a href="/profile" class="navbar-username" aria-label="View your profile"><img src="${escHtml(currentUser.avatar || DEFAULT_AVATAR)}" alt="" class="navbar-avatar">${escHtml(currentUser.username)}</a>
       <button class="btn btn-sm" id="logoutBtn">Sign Out</button>`;
 
     document.getElementById('logoutBtn').addEventListener('click', handleLogout);
@@ -2288,26 +2290,128 @@ async function loadProfileAccount() {
       : '—';
 
     accountWrap.innerHTML = `
-      <div class="results-summary-grid">
-        <div class="results-stat">
-          <span class="results-stat-val">${escHtml(profile.username)}</span>
-          <span class="results-stat-label">Username</span>
+      <div class="profile-account">
+        <div class="profile-avatar-col">
+          <img class="profile-avatar" id="profileAvatar" src="${escHtml(profile.avatar || DEFAULT_AVATAR)}" alt="Profile picture">
+          <div class="profile-avatar-actions">
+            <input type="file" id="avatarInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+            <button class="btn btn-sm" id="avatarChangeBtn">Change Picture</button>
+            <button class="btn btn-sm" id="avatarRemoveBtn" ${profile.avatar ? '' : 'hidden'}>Remove</button>
+          </div>
+          <p class="form-error" id="avatarError" aria-live="polite" hidden></p>
         </div>
-        <div class="results-stat">
-          <span class="results-stat-val">${escHtml(profile.role)}</span>
-          <span class="results-stat-label">Role</span>
-        </div>
-        <div class="results-stat">
-          <span class="results-stat-val" style="font-size:1.1rem;">${escHtml(joined)}</span>
-          <span class="results-stat-label">Member Since</span>
+        <div class="results-summary-grid">
+          <div class="results-stat">
+            <span class="results-stat-val">${escHtml(profile.username)}</span>
+            <span class="results-stat-label">Username</span>
+          </div>
+          <div class="results-stat">
+            <span class="results-stat-val">${escHtml(profile.role)}</span>
+            <span class="results-stat-label">Role</span>
+          </div>
+          <div class="results-stat">
+            <span class="results-stat-val" style="font-size:1.1rem;">${escHtml(joined)}</span>
+            <span class="results-stat-label">Member Since</span>
+          </div>
         </div>
       </div>`;
 
+    wireAvatarControls();
     renderProfileRoomHistory(profile.roomAttempts ?? []);
   } catch {
     accountWrap.innerHTML = `<p style="color:var(--danger);font-family:'Share Tech Mono',monospace;">Failed to load account info.</p>`;
     if (historyWrap) historyWrap.innerHTML = `<p style="color:var(--danger);font-family:'Share Tech Mono',monospace;">Failed to load quiz room history.</p>`;
   }
+}
+
+function wireAvatarControls() {
+  const input     = document.getElementById('avatarInput');
+  const changeBtn = document.getElementById('avatarChangeBtn');
+  const removeBtn = document.getElementById('avatarRemoveBtn');
+  const img       = document.getElementById('profileAvatar');
+  const errorEl   = document.getElementById('avatarError');
+  if (!input || !changeBtn || !img) return;
+
+  const showError = msg => { if (errorEl) { errorEl.textContent = msg; errorEl.hidden = false; } };
+  const clearError = () => { if (errorEl) errorEl.hidden = true; };
+
+  const applyAvatar = avatar => {
+    img.src = avatar || DEFAULT_AVATAR;
+    if (removeBtn) removeBtn.hidden = !avatar;
+    if (currentUser) currentUser.avatar = avatar;
+    updateAuthNav();
+  };
+
+  changeBtn.addEventListener('click', () => input.click());
+
+  input.addEventListener('change', async () => {
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    clearError();
+    changeBtn.disabled = true;
+    try {
+      const dataUrl = await resizeAvatarImage(file);
+      const res = await fetch('/api/profile/avatar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatar: dataUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      applyAvatar(data.avatar);
+    } catch (err) {
+      showError(err.message || 'Upload failed.');
+    } finally {
+      changeBtn.disabled = false;
+    }
+  });
+
+  removeBtn?.addEventListener('click', () => {
+    confirmDialog('Remove your profile picture and go back to the default?', async () => {
+      clearError();
+      try {
+        const res = await fetch('/api/profile/avatar', { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        applyAvatar(null);
+      } catch {
+        showError('Failed to remove picture.');
+      }
+    }, 'Remove');
+  });
+}
+
+// Crop-to-square and downscale a chosen image file, returning a small data URL
+function resizeAvatarImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) {
+      return reject(new Error('Please choose a PNG, JPEG, WebP, or GIF image.'));
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      return reject(new Error('Image too large (max 8MB).'));
+    }
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      const SIZE = 256;
+      const canvas = document.createElement('canvas');
+      canvas.width = SIZE;
+      canvas.height = SIZE;
+      const ctx = canvas.getContext('2d');
+      const scale = Math.max(SIZE / img.width, SIZE / img.height);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      ctx.drawImage(img, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
+      let dataUrl = canvas.toDataURL('image/webp', 0.85);
+      if (!dataUrl.startsWith('data:image/webp')) dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      resolve(dataUrl);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      reject(new Error('Could not read that image file.'));
+    };
+    img.src = URL.createObjectURL(file);
+  });
 }
 
 function renderProfileRoomHistory(attempts) {
