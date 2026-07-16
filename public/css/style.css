@@ -285,6 +285,27 @@ body > main,
   flex-wrap: wrap;
 }
 
+/* Homepage intro prose (crawlable body copy) */
+.home-intro {
+  max-width: 760px;
+  margin-top: 1rem;
+}
+.home-intro p {
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin-bottom: 1rem;
+}
+.home-intro strong {
+  color: var(--text);
+}
+.home-intro a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.home-intro a:hover {
+  text-decoration: underline;
+}
+
 /* ─── Stats Bar ──────────────────────────────────────────── */
 .stats-bar {
   display: flex;
