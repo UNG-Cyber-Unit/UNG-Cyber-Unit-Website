@@ -2294,7 +2294,7 @@ async function loadProfileAccount() {
         <div class="profile-avatar-col">
           <img class="profile-avatar" id="profileAvatar" src="${escHtml(profile.avatar || DEFAULT_AVATAR)}" alt="Profile picture">
           <div class="profile-avatar-actions">
-            <input type="file" id="avatarInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+            <input type="file" id="avatarInput" accept="image/*" hidden>
             <button class="btn btn-sm" id="avatarChangeBtn">Change Picture</button>
             <button class="btn btn-sm" id="avatarRemoveBtn" ${profile.avatar ? '' : 'hidden'}>Remove</button>
           </div>
@@ -2381,11 +2381,15 @@ function wireAvatarControls() {
   });
 }
 
-// Crop-to-square and downscale a chosen image file, returning a small data URL
+// Crop-to-square and downscale a chosen image file, returning a small data URL.
+// Accepts any format the browser can decode (PNG, JPEG, WebP, GIF, BMP, AVIF,
+// SVG, ICO, ...) since the result is always re-encoded to WebP/JPEG anyway.
 function resizeAvatarImage(file) {
   return new Promise((resolve, reject) => {
-    if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) {
-      return reject(new Error('Please choose a PNG, JPEG, WebP, or GIF image.'));
+    // Some platforms report an empty type for less common formats (e.g. HEIC),
+    // so only reject when the type is present and clearly not an image.
+    if (file.type && !file.type.startsWith('image/')) {
+      return reject(new Error('That file is not an image.'));
     }
     if (file.size > 8 * 1024 * 1024) {
       return reject(new Error('Image too large (max 8MB).'));
@@ -2393,22 +2397,30 @@ function resizeAvatarImage(file) {
     const img = new Image();
     img.onload = () => {
       URL.revokeObjectURL(img.src);
+      if (!img.naturalWidth || !img.naturalHeight) {
+        return reject(new Error('Could not determine the image dimensions.'));
+      }
       const SIZE = 256;
       const canvas = document.createElement('canvas');
       canvas.width = SIZE;
       canvas.height = SIZE;
       const ctx = canvas.getContext('2d');
-      const scale = Math.max(SIZE / img.width, SIZE / img.height);
-      const w = img.width * scale;
-      const h = img.height * scale;
+      const scale = Math.max(SIZE / img.naturalWidth, SIZE / img.naturalHeight);
+      const w = img.naturalWidth * scale;
+      const h = img.naturalHeight * scale;
       ctx.drawImage(img, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
-      let dataUrl = canvas.toDataURL('image/webp', 0.85);
-      if (!dataUrl.startsWith('data:image/webp')) dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      let dataUrl;
+      try {
+        dataUrl = canvas.toDataURL('image/webp', 0.85);
+        if (!dataUrl.startsWith('data:image/webp')) dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      } catch {
+        return reject(new Error('Could not process that image.'));
+      }
       resolve(dataUrl);
     };
     img.onerror = () => {
       URL.revokeObjectURL(img.src);
-      reject(new Error('Could not read that image file.'));
+      reject(new Error(`This browser can't read that image format${file.type ? ` (${file.type})` : ''}. Try a PNG or JPEG.`));
     };
     img.src = URL.createObjectURL(file);
   });

@@ -993,6 +993,31 @@ function jsonResponse(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), { status, headers: h });
 }
 
+// Confirm a base64 image payload's actual bytes match the declared type, so we
+// never store arbitrary content (HTML/SVG/etc.) smuggled under an image label.
+// Returns true only when the leading magic bytes match `type` (png|jpeg|webp).
+function base64ImageMatchesType(b64, type) {
+  let bin;
+  try { bin = atob(b64); } catch { return false; }
+  const byte = i => bin.charCodeAt(i);
+  if (type === 'png') {
+    // 89 50 4E 47 0D 0A 1A 0A
+    return bin.length > 8 &&
+      byte(0) === 0x89 && byte(1) === 0x50 && byte(2) === 0x4e && byte(3) === 0x47 &&
+      byte(4) === 0x0d && byte(5) === 0x0a && byte(6) === 0x1a && byte(7) === 0x0a;
+  }
+  if (type === 'jpeg') {
+    // FF D8 FF
+    return bin.length > 3 && byte(0) === 0xff && byte(1) === 0xd8 && byte(2) === 0xff;
+  }
+  if (type === 'webp') {
+    // "RIFF" .... "WEBP"
+    return bin.length > 12 &&
+      bin.slice(0, 4) === 'RIFF' && bin.slice(8, 12) === 'WEBP';
+  }
+  return false;
+}
+
 function parseCookies(header) {
   if (!header) return {};
   return Object.fromEntries(
@@ -1373,8 +1398,14 @@ export default {
       const { avatar } = body ?? {};
       if (typeof avatar !== 'string') return jsonResponse({ error: 'Avatar image required' }, 400);
       if (avatar.length > 150_000) return jsonResponse({ error: 'Image too large' }, 400);
-      if (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(avatar)) {
+      const avatarMatch = avatar.match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/);
+      if (!avatarMatch) {
         return jsonResponse({ error: 'Invalid image format' }, 400);
+      }
+      // Verify the decoded bytes really are the declared image type — reject any
+      // non-image content smuggled under an image MIME label.
+      if (!base64ImageMatchesType(avatarMatch[2], avatarMatch[1])) {
+        return jsonResponse({ error: 'File is not a valid image' }, 400);
       }
 
       await env.DB.prepare('UPDATE users SET avatar = ? WHERE id = ?').bind(avatar, session.sub).run();
