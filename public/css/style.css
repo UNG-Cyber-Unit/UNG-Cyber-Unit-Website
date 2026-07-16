@@ -285,6 +285,11 @@ body > main,
   flex-wrap: wrap;
 }
 
+/* Homepage "About the Unit" section — separate it from the topic grid above */
+#about-unit {
+  margin-top: 3.5rem;
+}
+
 /* Homepage intro prose (crawlable body copy) */
 .home-intro {
   max-width: 760px;
