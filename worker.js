@@ -974,7 +974,7 @@ function notFoundResponse() {
   </main>
 
   <footer>
-    CyberUnit @ UNG | Cybersecurity Intro Class | Built with Node.js + Express
+    CyberUnit @ UNG | Cybersecurity Intro Class | Built on Cloudflare Workers
   </footer>
 
   <script src="/js/main.js"></script>
