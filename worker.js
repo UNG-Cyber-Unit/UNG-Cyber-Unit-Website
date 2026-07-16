@@ -1026,6 +1026,24 @@ function topicMetaTags(topic) {
   ].join('\n  ');
 }
 
+// Server-rendered topic cards for the homepage so the grid's content is in the
+// HTML (crawlers and no-JS users see it). main.js re-renders these with per-user
+// progress when it loads, and leaves them intact if that fetch fails.
+function homeTopicCards() {
+  return topics.map(t => {
+    const title = escapeHtml(t.title);
+    return `<a href="/topic/${t.id}" class="card card-link" aria-label="${title}">
+          <div class="card-icon" aria-hidden="true">${t.icon}</div>
+          <h3 class="card-title">${title}</h3>
+          <p class="card-desc">${escapeHtml(t.shortDesc)}</p>
+          <div class="card-footer">
+            <span class="badge badge-beginner">${escapeHtml(t.difficulty)}</span>
+            <span class="btn btn-sm" aria-hidden="true">Explore →</span>
+          </div>
+        </a>`;
+  }).join('\n        ');
+}
+
 // ─── Auth & Progress Helpers ─────────────────────────────────────────────────
 
 function jsonResponse(data, status = 200, extra = {}) {
@@ -2217,6 +2235,18 @@ export default {
           if (topic) {
             const html = (await assetResponse.text())
               .replace('<title>CyberUnit @ UNG — Topic</title>', topicMetaTags(topic));
+            headers.delete('Content-Length');
+            headers.set('Content-Type', 'text/html; charset=utf-8');
+            return new Response(html, { status: assetResponse.status, headers });
+          }
+
+          // Server-render the homepage topic grid + stat counts so the primary
+          // content isn't dependent on a client-side fetch that crawlers may skip.
+          if (path === '/') {
+            const html = (await assetResponse.text())
+              .replace('<!-- Populated by main.js -->', homeTopicCards())
+              .replace('<strong id="statTopics">—</strong>', `<strong id="statTopics">${topics.length}</strong>`)
+              .replace('<strong id="statQuizzes">—</strong>', `<strong id="statQuizzes">${topics.length}</strong>`);
             headers.delete('Content-Length');
             headers.set('Content-Type', 'text/html; charset=utf-8');
             return new Response(html, { status: assetResponse.status, headers });

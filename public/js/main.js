@@ -122,7 +122,11 @@ async function renderTopicGrid() {
         </a>`;
     }).join('');
   } catch (err) {
-    grid.innerHTML = '<p style="color:var(--danger);font-family:\'Share Tech Mono\',monospace;">Failed to load topics.</p>';
+    // The grid is server-rendered, so only show an error if it's actually empty
+    // (never wipe the server-rendered cards when the progress fetch fails).
+    if (!grid.querySelector('.card')) {
+      grid.innerHTML = '<p style="color:var(--danger);font-family:\'Share Tech Mono\',monospace;">Failed to load topics.</p>';
+    }
   }
 }
 

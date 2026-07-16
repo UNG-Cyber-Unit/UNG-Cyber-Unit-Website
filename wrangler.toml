@@ -5,6 +5,9 @@ compatibility_date = "2024-01-01"
 [assets]
 directory = "./public"
 binding = "ASSETS"
+# Run the worker first for the homepage so it can server-render the topic grid
+# (see the path === '/' branch in worker.js). All other paths serve assets directly.
+run_worker_first = [ "/" ]
 
 [[d1_databases]]
 binding      = "DB"
