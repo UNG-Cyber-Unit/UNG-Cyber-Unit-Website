@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT    NOT NULL,
   role          TEXT    NOT NULL DEFAULT 'member',
   avatar        TEXT,
+  streak        INTEGER NOT NULL DEFAULT 0,
+  last_active   TEXT,
   created_at    INTEGER NOT NULL
 );
 

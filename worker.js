@@ -1149,6 +1149,14 @@ function jsonResponse(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), { status, headers: h });
 }
 
+// YYYY-MM-DD in UTC, offset by `days` (0 = today, -1 = yesterday). Used for
+// the daily learning streak.
+function dateStrUTC(days = 0) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 // Confirm a base64 image payload's actual bytes match the declared type, so we
 // never store arbitrary content (HTML/SVG/etc.) smuggled under an image label.
 // Returns true only when the leading magic bytes match `type` (png|jpeg|webp).
@@ -1549,7 +1557,11 @@ export default {
         const { results } = await env.DB.prepare(
           'SELECT topic_id, score, total FROM quiz_results WHERE user_id = ?'
         ).bind(session.sub).all();
-        return jsonResponse({ results: results ?? [] });
+        // Current daily streak — only valid if the user was active today or
+        // yesterday; otherwise the streak is broken and reads as 0.
+        const u = await env.DB.prepare('SELECT streak, last_active FROM users WHERE id = ?').bind(session.sub).first();
+        const streak = (u && (u.last_active === dateStrUTC(0) || u.last_active === dateStrUTC(-1))) ? (u.streak ?? 0) : 0;
+        return jsonResponse({ results: results ?? [], streak });
       }
 
       // DELETE /api/progress/:topicId
@@ -1585,7 +1597,18 @@ export default {
             total      = excluded.total,
             updated_at = excluded.updated_at
         `).bind(session.sub, topicId, score, total, Date.now()).run();
-        return jsonResponse({ ok: true });
+
+        // Update the user's daily learning streak.
+        const today = dateStrUTC(0);
+        const u = await env.DB.prepare('SELECT streak, last_active FROM users WHERE id = ?').bind(session.sub).first();
+        let streak;
+        if (u?.last_active === today) streak = u.streak ?? 1;              // already counted today
+        else if (u?.last_active === dateStrUTC(-1)) streak = (u.streak ?? 0) + 1; // consecutive day
+        else streak = 1;                                                  // first activity or streak broken
+        await env.DB.prepare('UPDATE users SET streak = ?, last_active = ? WHERE id = ?')
+          .bind(streak, today, session.sub).run();
+
+        return jsonResponse({ ok: true, streak });
       }
     }
 

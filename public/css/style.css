@@ -2850,3 +2850,39 @@ footer {
 @media (max-width: 520px) {
   .pw-cta { flex-direction: column; align-items: flex-start; gap: 0.9rem; }
 }
+
+/* ═══ Pathway motion + completed-module marker ════════════════ */
+/* Hidden/animated states apply ONLY when JS adds .js-motion, so no-JS
+   users and crawlers always see the content. */
+.pathway.js-motion .pw-stage {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.pathway.js-motion .pw-stage.is-revealed { opacity: 1; transform: none; }
+.pathway.js-motion::before { transform-origin: top; animation: pwLineGrow 1.1s ease forwards; }
+@keyframes pwLineGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+/* Completed module — a small check in the top corner */
+.pw-module-done::after {
+  content: '✓';
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pw-stage.is-active .pw-node { animation: none; }
+  .pw-progress-fill { transition: none; }
+}
