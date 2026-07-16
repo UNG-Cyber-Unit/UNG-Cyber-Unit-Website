@@ -1224,6 +1224,23 @@ function validateJSONQuestions(raw) {
   return { questions };
 }
 
+// ─── Test Exports ─────────────────────────────────────────────────────────────
+// Named exports for unit testing. The Workers runtime uses only `export default`
+// below and ignores these; they let test/worker.test.mjs import pure helpers.
+export {
+  base64ImageMatchesType,
+  parseCookies,
+  timingSafeEqual,
+  hashPassword,
+  verifyPassword,
+  signJWT,
+  verifyJWT,
+  generateRoomCode,
+  parseCSVLine,
+  parseCSV,
+  validateJSONQuestions,
+};
+
 // ─── Worker Entry Point ───────────────────────────────────────────────────────
 
 export default {
