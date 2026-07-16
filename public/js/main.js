@@ -49,7 +49,10 @@ function initTypewriter() {
   const el = document.getElementById('typewriterText');
   if (!el) return;
 
-  const text = 'Learn Cybersecurity. One Concept at a Time.';
+  // Text is server-rendered into the span (see index.html); re-type it for the
+  // animation so crawlers and no-JS users still see the full heading.
+  const text = el.textContent.trim() || 'Learn Cybersecurity. One Concept at a Time.';
+  el.textContent = '';
   let i = 0;
 
   function type() {

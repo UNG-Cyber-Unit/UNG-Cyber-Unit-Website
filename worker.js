@@ -984,6 +984,36 @@ function notFoundResponse() {
   return new Response(html, { status: 404, headers });
 }
 
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Per-topic <head> tags so each /topic/:id is its own indexable page rather
+// than sharing the generic topic.html metadata. Injected at serve time.
+function topicMetaTags(topic) {
+  const title = escapeHtml(`${topic.title} — UNG Cyber Unit`);
+  const desc = escapeHtml(`${topic.shortDesc} A beginner cybersecurity lesson from the UNG Cyber Unit.`);
+  const canonical = `https://ungcyberunit.org/topic/${topic.id}`;
+  const image = 'https://ungcyberunit.org/images/CyberUnitLogo_Transparent.png';
+  return [
+    `<title>${title}</title>`,
+    `<meta name="description" content="${desc}">`,
+    `<link rel="canonical" href="${canonical}">`,
+    `<meta property="og:type" content="article">`,
+    `<meta property="og:site_name" content="UNG Cyber Unit">`,
+    `<meta property="og:title" content="${title}">`,
+    `<meta property="og:description" content="${desc}">`,
+    `<meta property="og:url" content="${canonical}">`,
+    `<meta property="og:image" content="${image}">`,
+    `<meta name="twitter:card" content="summary">`,
+  ].join('\n  ');
+}
+
 // ─── Auth & Progress Helpers ─────────────────────────────────────────────────
 
 function jsonResponse(data, status = 200, extra = {}) {
@@ -2151,6 +2181,17 @@ export default {
         const assetResponse = await env.ASSETS.fetch(assetUrl.toString());
         if (assetResponse.ok) {
           const headers = addSecurityHeaders(new Headers(assetResponse.headers));
+
+          // Inject per-topic SEO metadata into the shared topic.html head.
+          const topic = topicPageMatch ? topics.find(t => t.id === path.split('/').pop()) : null;
+          if (topic) {
+            const html = (await assetResponse.text())
+              .replace('<title>CyberUnit @ UNG — Topic</title>', topicMetaTags(topic));
+            headers.delete('Content-Length');
+            headers.set('Content-Type', 'text/html; charset=utf-8');
+            return new Response(html, { status: assetResponse.status, headers });
+          }
+
           return new Response(assetResponse.body, {
             status: assetResponse.status,
             headers,
