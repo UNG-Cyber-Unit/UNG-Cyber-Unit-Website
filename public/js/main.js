@@ -1239,41 +1239,33 @@ function updateAuthNav() {
   const navItem = document.getElementById('authNavItem');
   if (!navItem) return;
 
-  const joinBtn = `<div class="nav-dropdown" id="navJoinDropdown">
-      <button class="nav-dropdown-toggle" id="navJoinDropdownBtn" aria-label="Join menu" aria-expanded="false">☰</button>
-      <div class="nav-dropdown-menu" id="navJoinDropdownMenu" hidden><a href="/quiz" class="nav-dropdown-item">Join Room</a></div>
+  // Single ☰ menu: Join Room for everyone, plus role-gated panels. Server
+  // routes still enforce these roles; this gating only controls visibility.
+  const menuItems = [
+    `<a href="/quiz" class="nav-dropdown-item">Join Room</a>`,
+    isInstructor() ? `<a href="/instructor" class="nav-dropdown-item">Instructor Panel</a>` : '',
+    currentUser?.role === 'admin' ? `<a href="/admin" class="nav-dropdown-item nav-dropdown-item--danger">Admin Panel</a>` : '',
+  ].filter(Boolean).join('');
+
+  const menuBtn = `<div class="nav-dropdown" id="navMenuDropdown">
+      <button class="nav-dropdown-toggle" id="navMenuBtn" aria-label="Menu" aria-expanded="false">☰</button>
+      <div class="nav-dropdown-menu" id="navMenuList" hidden>${menuItems}</div>
     </div>`;
 
   if (currentUser) {
-    const panelItems = [
-      isInstructor() ? `<a href="/instructor" class="nav-dropdown-item">Instructor Panel</a>` : '',
-      currentUser.role === 'admin' ? `<a href="/admin" class="nav-dropdown-item nav-dropdown-item--danger">Admin Panel</a>` : '',
-    ].filter(Boolean).join('');
-
-    const wrenchBtn = panelItems
-      ? `<div class="nav-dropdown" id="navDropdown">
-           <button class="nav-dropdown-toggle" id="navDropdownBtn" aria-label="Panel options" aria-expanded="false">🔧</button>
-           <div class="nav-dropdown-menu" id="navDropdownMenu" hidden>${panelItems}</div>
-         </div>`
-      : '';
-
     navItem.innerHTML = `
-      ${joinBtn}
-      ${wrenchBtn}
+      ${menuBtn}
       <a href="/profile" class="navbar-username" aria-label="View your profile"><img src="${escHtml(currentUser.avatar || DEFAULT_AVATAR)}" alt="" class="navbar-avatar">${escHtml(currentUser.username)}</a>
       <button class="btn btn-sm" id="logoutBtn">Sign Out</button>`;
-
     document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-
-    wireNavDropdown('navDropdownBtn', 'navDropdownMenu');
   } else {
     navItem.innerHTML = `
-      ${joinBtn}
+      ${menuBtn}
       <button class="btn btn-sm" id="openAuthBtn">Sign In</button>`;
     document.getElementById('openAuthBtn').addEventListener('click', () => openAuthModal('login'));
   }
 
-  wireNavDropdown('navJoinDropdownBtn', 'navJoinDropdownMenu');
+  wireNavDropdown('navMenuBtn', 'navMenuList');
 }
 
 function wireNavDropdown(btnId, menuId) {
