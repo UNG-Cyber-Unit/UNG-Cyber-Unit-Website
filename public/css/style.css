@@ -1541,8 +1541,8 @@ footer {
 /* Username link: keeps its own face but inherits the animated ::after
    underline from .navbar-links a — no text-decoration underline on top */
 .navbar-links a.navbar-username {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 0.8rem;
+  font-family: 'Exo 2', sans-serif;
+  font-size: 0.9rem;
   color: var(--accent);
   text-transform: none;
   text-decoration: none;
@@ -1557,10 +1557,6 @@ footer {
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid var(--border);
-}
-
-.room-card--muted {
-  opacity: 0.65;
 }
 
 /* ─── Profile page avatar ────────────────────────────────── */

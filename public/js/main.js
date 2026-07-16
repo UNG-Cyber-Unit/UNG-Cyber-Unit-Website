@@ -2477,21 +2477,25 @@ async function loadProfileProgress() {
       <p style="color:var(--text-muted);font-family:'Share Tech Mono',monospace;font-size:0.85rem;margin:0 0 1rem;">
         ${completed} of ${topics.length} topic quizzes completed
       </p>
-      <div class="public-room-grid">
+      <div class="topic-grid">
         ${topics.map(t => {
           const prog = progressMap[t.id];
-          const scoreText = prog
-            ? `${prog.score}/${prog.total}${prog.score === prog.total ? ' <span class="progress-star" aria-hidden="true">★</span>' : ''}`
-            : 'Not attempted';
+          const progressBadge = prog
+            ? `<div class="card-progress" aria-label="Quiz score: ${prog.score} of ${prog.total}">
+                 ${prog.score}/${prog.total}${prog.score === prog.total ? ' <span class="progress-star" aria-hidden="true">★</span>' : ''}
+               </div>`
+            : '';
           return `
-          <div class="room-card${prog ? '' : ' room-card--muted'}">
-            <div class="room-card-title">${t.icon} ${escHtml(t.title)}</div>
-            <div class="room-card-meta">${scoreText}</div>
-            <div class="room-card-footer">
-              <span></span>
-              <a href="/topic/${t.id}" class="btn btn-sm">${prog ? 'Review' : 'Start'}</a>
-            </div>
-          </div>`;
+            <article class="card${prog ? ' card-completed' : ''}" aria-label="${escHtml(t.title)}">
+              ${progressBadge}
+              <div class="card-icon" aria-hidden="true">${t.icon}</div>
+              <h3 class="card-title">${escHtml(t.title)}</h3>
+              <p class="card-desc">${escHtml(t.shortDesc)}</p>
+              <div class="card-footer">
+                <span class="badge badge-beginner">${escHtml(t.difficulty)}</span>
+                <a href="/topic/${t.id}" class="btn btn-sm" aria-label="Explore ${escHtml(t.title)}">Explore →</a>
+              </div>
+            </article>`;
         }).join('')}
       </div>`;
   } catch {
