@@ -1,0 +1,44 @@
+# CyberUnit @ UNG — working notes
+
+Interactive cybersecurity education site on **Cloudflare Workers + D1**. Canonical
+entry point is **`worker.js`** (routing, API, auth, security headers, per-page SEO
+injection). `server.js` is a legacy Express prototype — not deployed, ignore it.
+
+## Deployment
+- **Pushing to `main` auto-deploys** via GitHub Actions (`wrangler deploy`). There is
+  no separate deploy step — a push *is* a deploy.
+- **Schema changes must be migrated on the remote D1 *before* the deploy lands**, or
+  the worker will query a column/table that doesn't exist in prod and error. Apply to
+  both local and remote:
+  - `npx wrangler d1 execute DB --local  --command "<ALTER/CREATE ...>"`
+  - `npx wrangler d1 execute DB --remote --command "<ALTER/CREATE ...>"`
+
+## Gotchas when adding things
+
+**Adding a new HTML page (`public/*.html`):**
+- Cloudflare serves matching static files *before* the worker, so they bypass the
+  worker's security headers (CSP, `X-Frame-Options`, `nosniff`). **Add the page's
+  route to `run_worker_first` in `wrangler.toml`** so it gets those headers. Do NOT
+  add CSS/JS/image paths there — routing assets through the worker breaks their MIME
+  type. Pages only.
+- If the page has an **inline `<script>`**, its sha256 must be in the CSP `script-src`
+  allowlist in `worker.js` (`addSecurityHeaders`) or it will be blocked once routed
+  through the worker.
+- If it should rank in search: **add its path to the sitemap** (the `paths` array in
+  the `/sitemap.xml` route in `worker.js`) and give it a unique `<title>` +
+  `<meta name="description">`.
+- If it's a private/app page (auth-gated): add `<meta name="robots" content="noindex">`
+  and do NOT list it in the sitemap.
+
+**Adding a topic:** add it to the `topics` array in `worker.js`. The sitemap, the
+per-topic `<title>`/description/OG/`BreadcrumbList`, and the homepage grid all derive
+from that array automatically — no other edits needed.
+
+**Homepage topic grid** is server-rendered by the worker (`homeTopicCards()`, injected
+on the `path === '/'` branch) so crawlers see it without JS; `main.js` then enhances it
+with per-user progress and leaves the server cards intact if that fetch fails.
+
+## Verify before committing
+Run `npx wrangler dev` and actually exercise the change (repo pattern: drive it in
+headless Chrome via puppeteer-core). For DB-touching work, seed and clean rows with
+`wrangler d1 execute DB --local`, and delete any test users/rows afterward.
