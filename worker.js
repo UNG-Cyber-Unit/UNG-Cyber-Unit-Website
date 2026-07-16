@@ -940,6 +940,56 @@ function pathwayStageTopics(stage) {
   return stage.topicIds.map(id => topics.find(t => t.id === id)).filter(Boolean);
 }
 
+// Beginner framing for each topic: a mentor-voice "why this matters" hook shown
+// at the top of the topic page, and a plain-English key takeaway at the bottom.
+// Merged into the /api/topic/:id response so the client renders them.
+const topicFraming = {
+  '01': {
+    hook: "Before we touch a single tool, let's get the big picture. Cybersecurity isn't about being a genius in a hoodie — it's about protecting information, and almost all of it comes back to three simple ideas. Get comfortable with these and everything else you learn will have a place to live.",
+    takeaway: "Every security decision — a password, a lock, a backup — protects one of three things: keeping data secret (Confidentiality), keeping it correct (Integrity), or keeping it available when you need it (Availability). That's the CIA Triad.",
+  },
+  '02': {
+    hook: "You can't protect yourself from something you can't name. The good news? The attacks you'll actually run into fall into a handful of familiar categories — and once you can spot them, they lose most of their power. Let's meet them.",
+    takeaway: "Most attacks are variations on a few themes: tricking you (phishing, social engineering), holding your data hostage (ransomware), or overwhelming a system (DoS). Recognizing the pattern is your first line of defense.",
+  },
+  '03': {
+    hook: "Your password is the front door to your entire digital life — and most people are still using a screen door. This is the single highest-impact habit you can fix today, and it takes about ten minutes. Let's lock things down properly.",
+    takeaway: "Length beats complexity, never reuse a password, and turn on multi-factor authentication everywhere you can. A password manager makes all three effortless.",
+  },
+  '04': {
+    hook: "Here's a secret the pros know: attackers rarely 'hack' anything — they trick a person into opening the door for them. That person doesn't have to be you. Once you learn the playbook, the tricks start to feel obvious.",
+    takeaway: "If a message creates urgency, fear, or a too-good-to-be-true offer, slow down and verify through a channel you trust. Attackers rely on you reacting fast — so the fix is simply to pause.",
+  },
+  '05': {
+    hook: "Every website you visit and every message you send travels across a network — and you don't need a computer-science degree to follow it. Just enough networking to know where the risks hide (and why that little padlock matters) goes a long way.",
+    takeaway: "Data moves in packets across networks using addresses (IP) and rules (protocols). HTTPS encrypts that trip so eavesdroppers can't read it — which is why 'is there a padlock?' is a habit worth keeping.",
+  },
+  '06': {
+    hook: "Encryption sounds like scary math, but the core idea is something you already understand: scrambling a message so only the right person can unscramble it. It's the invisible layer protecting your bank login, your texts, and this very page. Let's demystify it.",
+    takeaway: "Encryption turns readable data into scrambled ciphertext that only someone with the right key can reverse. It's what keeps your data private even if someone manages to intercept it.",
+  },
+  '07': {
+    hook: "Staying safe online isn't about paranoia — it's about a few small habits that run on autopilot, like locking your car or washing your hands. Build them once and they protect you every day without a second thought.",
+    takeaway: "Keep software updated, be skeptical of links and downloads, use unique passwords, and back up what matters. Small, consistent habits stop the vast majority of everyday threats.",
+  },
+  '08': {
+    hook: "The command line looks intimidating — a blinking cursor and no buttons — but it's just a different way to talk to your computer, one clear instruction at a time. Nearly every security tool lives here, so getting comfortable is your gateway to the hands-on side of cyber. We'll go slow.",
+    takeaway: "The terminal lets you control a system precisely with typed commands. Learn a handful — moving between folders, listing files, reading permissions — and you've unlocked the environment most security work happens in.",
+  },
+  '09': {
+    hook: "Sooner or later something goes wrong — a breach, a lost laptop, a login that wasn't you. What separates a minor scare from a disaster is having a plan before the panic. That plan has a name, and it's simpler than you'd think.",
+    takeaway: "When something goes wrong, don't improvise — follow the lifecycle: Prepare, Identify, Contain, Eradicate, Recover, and capture Lessons learned. A calm, repeatable process beats panic every time.",
+  },
+  '10': {
+    hook: "Here's the exciting part: everything you're learning opens real doors. Cybersecurity has more open jobs than people to fill them, and there's a role for almost every kind of thinker — the puzzle-solver, the communicator, the builder. Let's talk about where this path can take you.",
+    takeaway: "There's no single 'right' way in. Pick a direction that fits how you like to work (defending, attacking, analyzing, building), grab an entry-level certification like Security+, and keep practicing — the field rewards curiosity over credentials.",
+  },
+  '11': {
+    hook: "Ready to feel like you're actually doing cyber? Bash is the language you'll use to drive Kali Linux — the toolkit ethical hackers reach for every day. Don't try to memorize it all; you'll pick it up by doing. Let's write your first commands.",
+    takeaway: "Bash lets you chain commands, automate tasks, and run the security tools in Kali. Start with the basics — moving around, running tools, simple scripts — and build from there. Every pro started exactly where you are now.",
+  },
+};
+
 // ─── Security Headers ─────────────────────────────────────────────────────────
 
 function addSecurityHeaders(headers) {
@@ -2301,7 +2351,7 @@ export default {
         return new Response(JSON.stringify({ error: 'Topic not found' }), { status: 404, headers });
       }
       const headers = addSecurityHeaders(new Headers({ 'Content-Type': 'application/json' }));
-      return new Response(JSON.stringify(topic), { headers });
+      return new Response(JSON.stringify({ ...topic, ...(topicFraming[topic.id] || {}) }), { headers });
     }
 
     // ── Static assets: serve from the [assets] binding ───────────────────────

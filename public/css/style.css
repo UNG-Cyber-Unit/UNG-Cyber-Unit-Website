@@ -2886,3 +2886,30 @@ footer {
   .pw-stage.is-active .pw-node { animation: none; }
   .pw-progress-fill { transition: none; }
 }
+
+/* ═══ Topic beginner framing: hook + key takeaway ═════════════ */
+.topic-hook {
+  font-size: 1.15rem;
+  line-height: 1.7;
+  color: var(--text);
+  border-left: 3px solid var(--accent);
+  padding: 0.15rem 0 0.15rem 1.1rem;
+  margin: 0 0 2rem;
+}
+.topic-takeaway {
+  margin: 2.5rem 0 1rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  border-radius: 8px;
+  background: rgba(0, 255, 136, 0.05);
+}
+.topic-takeaway-label {
+  display: block;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+.topic-takeaway p { margin: 0; color: var(--text-soft); line-height: 1.7; }

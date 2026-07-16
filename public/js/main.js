@@ -231,7 +231,7 @@ async function renderTopicPage() {
 // ─── Content Renderer ─────────────────────────────────────────────────────────
 
 function renderContent(topic) {
-  return topic.fullContent.sections.map((section, index) => {
+  const sectionsHtml = topic.fullContent.sections.map((section, index) => {
     let html = `<div class="content-section" id="section-${index}">
       <h3>${section.heading}</h3>`;
 
@@ -306,6 +306,19 @@ function renderContent(topic) {
     html += `</div>`;
     return html;
   }).join('');
+
+  // Beginner framing: a mentor-voice "why this matters" hook up top, and a
+  // plain-English key takeaway at the bottom. Both are optional per topic.
+  const hook = topic.hook
+    ? `<div class="topic-hook">${topic.hook}</div>`
+    : '';
+  const takeaway = topic.takeaway
+    ? `<div class="topic-takeaway">
+         <span class="topic-takeaway-label">🎯 Key Takeaway</span>
+         <p>${topic.takeaway}</p>
+       </div>`
+    : '';
+  return hook + sectionsHtml + takeaway;
 }
 
 // ─── Component Renderers ──────────────────────────────────────────────────────
