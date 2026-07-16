@@ -2104,6 +2104,24 @@ export default {
     }
 
     // ── API: list all topics (summary only) ──────────────────────────────────
+    // ── robots.txt ────────────────────────────────────────────────────────────
+    // Served from the worker so it's version-controlled and gets the same
+    // security headers. Deliberately does NOT Disallow private routes (/admin,
+    // /instructor, /profile): robots.txt is public, so listing them would only
+    // advertise them. Those pages are protected by auth, not by robots rules.
+    if (path === '/robots.txt') {
+      const body = [
+        'User-agent: *',
+        'Allow: /',
+        'Disallow: /api/',
+        '',
+        'Sitemap: https://ungcyberunit.org/sitemap.xml',
+        '',
+      ].join('\n');
+      const headers = addSecurityHeaders(new Headers({ 'Content-Type': 'text/plain; charset=utf-8' }));
+      return new Response(body, { headers });
+    }
+
     // ── XML sitemap for search engines ────────────────────────────────────────
     // Generated from the topics list so it stays in sync as topics are added.
     if (path === '/sitemap.xml') {
