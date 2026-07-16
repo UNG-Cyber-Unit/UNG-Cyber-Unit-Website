@@ -1125,6 +1125,47 @@ function generateRoomCode() {
   return `${r(0)}${r(1)}${r(2)}${r(3)}-${r(4)}${r(5)}${r(6)}${r(7)}`;
 }
 
+// ─── Room Lookup Rate Limiting ────────────────────────────────────────────────
+// Throttle brute-force guessing of room codes. We count only *failed* lookups
+// (unknown/closed/expired codes) per client IP in a sliding window, so ordinary
+// use — joining rooms you have a valid code for — is never throttled.
+const ROOM_RL_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const ROOM_RL_MAX_FAILURES = 20;          // failed code lookups per IP per window
+
+function clientIP(request) {
+  return request.headers.get('CF-Connecting-IP')
+    || request.headers.get('X-Forwarded-For')?.split(',')[0].trim()
+    || 'unknown';
+}
+
+// Returns a 429 Response when this IP is over the limit, otherwise null.
+async function checkRoomLookupLimit(env, request) {
+  if (!env.DB) return null;
+  const cutoff = Date.now() - ROOM_RL_WINDOW_MS;
+  const row = await env.DB.prepare(
+    'SELECT COUNT(*) AS n FROM room_lookup_failures WHERE ip = ? AND ts > ?'
+  ).bind(clientIP(request), cutoff).first();
+  if ((row?.n ?? 0) >= ROOM_RL_MAX_FAILURES) {
+    return jsonResponse({ error: 'Too many room attempts. Please wait a few minutes and try again.' }, 429);
+  }
+  return null;
+}
+
+async function recordRoomLookupFailure(env, request) {
+  if (!env.DB) return;
+  const now = Date.now();
+  await env.DB.prepare('INSERT INTO room_lookup_failures (ip, ts) VALUES (?, ?)')
+    .bind(clientIP(request), now).run();
+  // Opportunistically prune expired rows so the table stays small.
+  await env.DB.prepare('DELETE FROM room_lookup_failures WHERE ts < ?').bind(now - ROOM_RL_WINDOW_MS).run();
+}
+
+// Uniform response for any code that can't be joined (unknown, closed, or
+// expired) so responses can't be used to probe which private rooms exist.
+function roomUnavailable() {
+  return jsonResponse({ error: 'Room not found or unavailable.' }, 404);
+}
+
 function parseCSVLine(line) {
   const result = [];
   let current = '';
@@ -1707,20 +1748,25 @@ export default {
         if (subpath === '/join' && request.method === 'GET') {
           const session = await requireRole(request, env, 'member');
           if (session instanceof Response) return session;
+          const limited = await checkRoomLookupLimit(env, request);
+          if (limited) return limited;
 
           const room = await env.DB.prepare(
             'SELECT id, code, title, status, expires_at FROM quiz_rooms WHERE code = ?'
           ).bind(code).first();
-          if (!room) return jsonResponse({ error: 'Room not found' }, 404);
-          if (room.status === 'closed') return jsonResponse({ error: 'This room is closed' }, 403);
-          if (room.expires_at && Date.now() / 1000 > room.expires_at) {
-            return jsonResponse({ error: 'This room has expired' }, 403);
-          }
 
-          // Check for existing attempt
-          const attempt = await env.DB.prepare(
+          // Users who already attempted legitimately know the room exists, so
+          // let them view their result even if it later closed or expired.
+          const attempt = room ? await env.DB.prepare(
             'SELECT id, score, total, completed_at FROM quiz_room_attempts WHERE room_id = ? AND user_id = ?'
-          ).bind(room.id, session.sub).first();
+          ).bind(room.id, session.sub).first() : null;
+
+          if (!attempt && (!room || room.status === 'closed' || (room.expires_at && Date.now() / 1000 > room.expires_at))) {
+            // Unknown, closed, and expired codes are indistinguishable, and each
+            // failed lookup counts toward the brute-force limit.
+            await recordRoomLookupFailure(env, request);
+            return roomUnavailable();
+          }
 
           if (attempt) {
             const { results: ansRows } = await env.DB.prepare(`
@@ -1766,9 +1812,16 @@ export default {
         if (subpath === '/my-attempt' && request.method === 'GET') {
           const session = await requireRole(request, env, 'member');
           if (session instanceof Response) return session;
+          const limited = await checkRoomLookupLimit(env, request);
+          if (limited) return limited;
 
           const room = await env.DB.prepare('SELECT id FROM quiz_rooms WHERE code = ?').bind(code).first();
-          if (!room) return jsonResponse({ error: 'Room not found' }, 404);
+          // An unknown code returns the same shape as a known room you haven't
+          // attempted, so it can't be used to detect which rooms exist.
+          if (!room) {
+            await recordRoomLookupFailure(env, request);
+            return jsonResponse({ attempt: null });
+          }
 
           const attempt = await env.DB.prepare(
             'SELECT id, score, total, completed_at FROM quiz_room_attempts WHERE room_id = ? AND user_id = ?'
@@ -1802,20 +1855,23 @@ export default {
         if (subpath === '/attempt' && request.method === 'POST') {
           const session = await requireRole(request, env, 'member');
           if (session instanceof Response) return session;
+          const limited = await checkRoomLookupLimit(env, request);
+          if (limited) return limited;
 
           const room = await env.DB.prepare(
             'SELECT id, code, title, status, expires_at FROM quiz_rooms WHERE code = ?'
           ).bind(code).first();
-          if (!room) return jsonResponse({ error: 'Room not found' }, 404);
-          if (room.status === 'closed') return jsonResponse({ error: 'This room is closed' }, 403);
-          if (room.expires_at && Date.now() / 1000 > room.expires_at) {
-            return jsonResponse({ error: 'This room has expired' }, 403);
-          }
-
-          const existing = await env.DB.prepare(
+          const existing = room ? await env.DB.prepare(
             'SELECT id FROM quiz_room_attempts WHERE room_id = ? AND user_id = ?'
-          ).bind(room.id, session.sub).first();
+          ).bind(room.id, session.sub).first() : null;
           if (existing) return jsonResponse({ error: 'You have already submitted this quiz' }, 409);
+
+          // Unknown, closed, and expired codes look identical and count toward
+          // the brute-force limit (a prior attempt is handled above).
+          if (!room || room.status === 'closed' || (room.expires_at && Date.now() / 1000 > room.expires_at)) {
+            await recordRoomLookupFailure(env, request);
+            return roomUnavailable();
+          }
 
           let body;
           try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request body' }, 400); }

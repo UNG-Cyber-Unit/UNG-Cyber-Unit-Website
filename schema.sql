@@ -53,6 +53,14 @@ CREATE TABLE IF NOT EXISTS quiz_room_attempts (
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+-- Sliding-window brute-force protection: one row per failed room-code lookup.
+CREATE TABLE IF NOT EXISTS room_lookup_failures (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ip TEXT    NOT NULL,
+  ts INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rlf_ip_ts ON room_lookup_failures (ip, ts);
+
 CREATE TABLE IF NOT EXISTS quiz_room_answers (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   attempt_id    INTEGER NOT NULL,
