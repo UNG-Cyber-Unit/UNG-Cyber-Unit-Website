@@ -3046,3 +3046,14 @@ footer {
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+/* Leaderboard user avatar */
+.lb-user-cell { display: inline-flex; align-items: center; gap: 0.6rem; }
+.lb-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}

@@ -1778,6 +1778,7 @@ export default {
 
       const { results: top } = await env.DB.prepare(`
         SELECT u.username,
+               u.avatar,
                SUM(${src.score}) AS points,
                COUNT(${src.unit}) AS count,
                SUM(CASE WHEN ${src.score} = ${src.total} THEN 1 ELSE 0 END) AS perfect
@@ -1796,7 +1797,7 @@ export default {
       return jsonResponse({
         mode,
         top: (top ?? []).map((r, i) => ({
-          rank: i + 1, username: r.username, points: r.points ?? 0, count: r.count ?? 0, perfect: r.perfect ?? 0,
+          rank: i + 1, username: r.username, avatar: r.avatar ?? null, points: r.points ?? 0, count: r.count ?? 0, perfect: r.perfect ?? 0,
         })),
         me: {
           username: session.username,

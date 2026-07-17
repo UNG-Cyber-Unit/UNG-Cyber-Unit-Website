@@ -2380,7 +2380,12 @@ function renderLeaderboard(top, me, mode = 'modules') {
     return `
       <tr class="${isMe ? 'lb-me' : ''}">
         <td class="lb-rank">${medal(row.rank)}</td>
-        <td class="lb-user">${escHtml(row.username)}${isMe ? ' <span class="lb-you">you</span>' : ''}</td>
+        <td class="lb-user">
+          <span class="lb-user-cell">
+            <img class="lb-avatar" src="${escHtml(row.avatar || DEFAULT_AVATAR)}" alt="">
+            <span>${escHtml(row.username)}</span>${isMe ? ' <span class="lb-you">you</span>' : ''}
+          </span>
+        </td>
         <td class="lb-pts">${row.points}</td>
         <td class="lb-sub">${row.count}</td>
         <td class="lb-sub">${row.perfect}</td>
