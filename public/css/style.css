@@ -3005,3 +3005,11 @@ footer {
 }
 .lb-footnote { margin-top: 1rem; color: var(--text-muted); font-family: 'Share Tech Mono', monospace; font-size: 0.82rem; }
 .lb-footnote strong { color: var(--accent); }
+
+/* ═══ Profile: top-3 rank tile (gold / silver / bronze) ═══════ */
+.pf-rank--gold   { border-color: #ffd700; box-shadow: 0 0 16px rgba(255, 215, 0, 0.15); }
+.pf-rank--gold   .results-stat-val { color: #ffd700; }
+.pf-rank--silver { border-color: #cfd4da; box-shadow: 0 0 16px rgba(207, 212, 218, 0.12); }
+.pf-rank--silver .results-stat-val { color: #cfd4da; }
+.pf-rank--bronze { border-color: #cd7f32; box-shadow: 0 0 16px rgba(205, 127, 50, 0.15); }
+.pf-rank--bronze .results-stat-val { color: #cd7f32; }

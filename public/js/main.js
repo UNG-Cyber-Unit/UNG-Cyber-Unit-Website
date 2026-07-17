@@ -1265,6 +1265,7 @@ function updateAuthNav() {
   const menuItems = [
     `<a href="/start" class="nav-dropdown-item">Beginner Pathway</a>`,
     `<a href="/quiz" class="nav-dropdown-item">Join Room</a>`,
+    `<a href="/leaderboard" class="nav-dropdown-item">Leaderboard</a>`,
     `<a href="/profile" class="nav-dropdown-item">Profile</a>`,
     isInstructor() ? `<a href="/instructor" class="nav-dropdown-item">Instructor Panel</a>` : '',
     currentUser?.role === 'admin' ? `<a href="/admin" class="nav-dropdown-item nav-dropdown-item--danger">Admin Panel</a>` : '',
@@ -2307,6 +2308,18 @@ async function initProfilePage() {
   ]);
 }
 
+async function initLeaderboardPage() {
+  const gate = document.getElementById('loginGate');
+  const content = document.getElementById('leaderboardContent');
+  if (!currentUser) {
+    if (gate) gate.hidden = false;
+    document.getElementById('loginGateBtn')?.addEventListener('click', () => openAuthModal('login'));
+    return;
+  }
+  if (content) content.hidden = false;
+  await loadLeaderboard();
+}
+
 async function loadLeaderboard() {
   const wrap = document.getElementById('leaderboardWrap');
   if (!wrap) return;
@@ -2375,6 +2388,9 @@ async function loadProfileAccount() {
       ? new Date(profile.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
       : '—';
     const displayName = profile.role === 'guest' ? 'Guest' : profile.username;
+    const rank = profile.rank;
+    const rankTier = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+    const rankDisplay = rank ? `${rank === 1 ? '👑 ' : ''}#${rank}` : 'Unranked';
 
     accountWrap.innerHTML = `
       <div class="profile-account">
@@ -2399,6 +2415,10 @@ async function loadProfileAccount() {
           <div class="results-stat">
             <span class="results-stat-val" style="font-size:1.1rem;">${escHtml(joined)}</span>
             <span class="results-stat-label">Member Since</span>
+          </div>
+          <div class="results-stat ${rankTier ? 'pf-rank pf-rank--' + rankTier : ''}">
+            <span class="results-stat-val">${rankDisplay}</span>
+            <span class="results-stat-label">Rank</span>
           </div>
         </div>
       </div>`;
@@ -2948,6 +2968,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     initJoinRoom();
   } else if (window.location.pathname === '/profile') {
     initProfilePage();
+  } else if (window.location.pathname === '/leaderboard') {
+    initLeaderboardPage();
   } else if (window.location.pathname.startsWith('/quiz/')) {
     initQuizRoom();
   } else if (window.location.pathname === '/instructor') {

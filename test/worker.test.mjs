@@ -743,3 +743,16 @@ describe('GET /api/leaderboard', () => {
     assert.equal(data.me.isGuest, true);
   });
 });
+
+// ─── GET /api/profile (auth) ────────────────────────────────────────────────────
+
+describe('GET /api/profile', () => {
+  test('should require a session', async () => {
+    // The profile (with rank, badges, room history) is not exposed to anonymous requests.
+    const res = await worker.fetch(
+      new Request('https://example.com/api/profile'),
+      { JWT_SECRET: SECRET, DB: mockDB() },
+    );
+    assert.equal(res.status, 401);
+  });
+});

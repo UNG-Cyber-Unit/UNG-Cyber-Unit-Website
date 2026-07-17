@@ -1717,9 +1717,30 @@ export default {
 
       // Pathway badges: a stage's badge is earned once all its topics are done.
       const { results: prog } = await env.DB.prepare(
-        'SELECT topic_id FROM quiz_results WHERE user_id = ?'
+        'SELECT topic_id, score FROM quiz_results WHERE user_id = ?'
       ).bind(session.sub).all();
-      const doneTopics = new Set((prog ?? []).map(r => String(r.topic_id)));
+      const rows = prog ?? [];
+      const doneTopics = new Set(rows.map(r => String(r.topic_id)));
+      const myPoints = rows.reduce((sum, r) => sum + (r.score ?? 0), 0);
+      const myTopics = rows.length;
+
+      // Leaderboard rank (same ordering as /api/leaderboard: points, then topics,
+      // then username). Guests and users with no points are unranked.
+      let rank = null;
+      if ((user.role ?? 'member') !== 'guest' && myPoints > 0) {
+        const rankRow = await env.DB.prepare(`
+          SELECT COUNT(*) + 1 AS rank FROM (
+            SELECT u.username, SUM(q.score) AS pts, COUNT(q.topic_id) AS topics
+            FROM users u JOIN quiz_results q ON q.user_id = u.id
+            WHERE u.role != 'guest'
+            GROUP BY u.id
+          ) t
+          WHERE t.pts > ?
+             OR (t.pts = ? AND t.topics > ?)
+             OR (t.pts = ? AND t.topics = ? AND t.username < ?)
+        `).bind(myPoints, myPoints, myTopics, myPoints, myTopics, user.username).first();
+        rank = rankRow?.rank ?? null;
+      }
 
       return jsonResponse({
         id: user.id,
@@ -1729,6 +1750,7 @@ export default {
         created_at: user.created_at,
         roomAttempts: roomAttempts ?? [],
         badges: pathwayBadges(doneTopics),
+        rank,
       });
     }
 
@@ -2445,6 +2467,7 @@ export default {
       '/quiz': '/quiz',
       '/profile': '/profile',
       '/start': '/start',
+      '/leaderboard': '/leaderboard',
     };
 
     // topic/:id — any path matching /topic/<something>

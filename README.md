@@ -109,7 +109,8 @@ cybersec-basics/
 | `/instructor` | Instructor panel — create/manage Quiz Rooms, grade free responses |
 | `/quiz` | **Join Room** — browse public Quiz Rooms, or enter a private room code |
 | `/quiz/:code` | Student — take a live Quiz Room / view your result |
-| `/profile` | Logged-in user's profile — account info, topic progress, Quiz Room history (click your username in the navbar) |
+| `/profile` | Logged-in user's profile — account info + rank, pathway badges, topic progress, Quiz Room history (click your username in the navbar) |
+| `/leaderboard` | Top Performers leaderboard (member-facing; also a section on the profile) |
 
 ### API
 
