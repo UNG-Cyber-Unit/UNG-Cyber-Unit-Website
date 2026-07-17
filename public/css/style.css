@@ -2143,10 +2143,6 @@ footer {
   min-width: 0;
 }
 
-/* Usernames are variable-length — size them to fit a full 20-char name on one
-   line in the tile, and wrap (never clip) if somehow longer. */
-.results-stat-val--name { font-size: 0.95rem; line-height: 1.3; }
-
 .results-stat-label {
   font-family: 'Share Tech Mono', monospace;
   font-size: 0.75rem;
@@ -3040,3 +3036,13 @@ footer {
 }
 .lb-mode-btn:hover { color: var(--text); border-color: var(--accent); }
 .lb-mode-btn.is-active { color: var(--accent); border-color: var(--accent); background: rgba(0, 255, 136, 0.08); }
+
+/* ═══ Profile name header (large, centered, green) ════════════ */
+.profile-name {
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--accent);
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  line-height: 1.15;
+  margin: 0;
+  overflow-wrap: anywhere;
+}

@@ -2417,6 +2417,8 @@ async function loadProfileAccount() {
       ? new Date(profile.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
       : '—';
     const displayName = profile.role === 'guest' ? 'Guest' : profile.username;
+    const nameHeader = document.getElementById('profileName');
+    if (nameHeader) nameHeader.textContent = displayName;
     const rankTile = (rank, label, href) => {
       const tier = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
       const disp = rank ? `${rank === 1 ? '👑 ' : ''}#${rank}` : 'Unranked';
@@ -2439,10 +2441,6 @@ async function loadProfileAccount() {
           <p class="form-error" id="avatarError" aria-live="polite" hidden></p>
         </div>
         <div class="results-summary-grid">
-          <div class="results-stat">
-            <span class="results-stat-val results-stat-val--name">${escHtml(displayName)}</span>
-            <span class="results-stat-label">Username</span>
-          </div>
           <div class="results-stat">
             <span class="results-stat-val">${escHtml(profile.role)}</span>
             <span class="results-stat-label">Role</span>
