@@ -18,6 +18,16 @@ import worker, {
   parseCSVLine,
   parseCSV,
   validateJSONQuestions,
+  escapeHtml,
+  dateStrUTC,
+  nextStreak,
+  topics,
+  pathwayStages,
+  pathwayStageTopics,
+  topicFraming,
+  topicCard,
+  pathwayHtml,
+  topicMetaTags,
 } from '../worker.js';
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
@@ -437,5 +447,227 @@ describe('POST /api/profile/avatar', () => {
 
     assert.equal(res.status, 401);
     assert.equal(db.calls.length, 0);
+  });
+});
+
+// ─── escapeHtml ─────────────────────────────────────────────────────────────────
+
+describe('escapeHtml', () => {
+  test('should escape the five HTML-significant characters', () => {
+    // Core: prevents injection when interpolating into HTML.
+    assert.equal(escapeHtml(`&<>"'`), '&amp;&lt;&gt;&quot;&#039;');
+  });
+
+  test('should leave safe text unchanged', () => {
+    // Happy path: ordinary text (incl. an em dash) passes through.
+    assert.equal(escapeHtml('Passwords — done'), 'Passwords — done');
+  });
+
+  test('should coerce non-strings to a string', () => {
+    // Edge case: numbers/undefined must not throw.
+    assert.equal(escapeHtml(42), '42');
+    assert.equal(escapeHtml(undefined), 'undefined');
+  });
+});
+
+// ─── dateStrUTC ─────────────────────────────────────────────────────────────────
+
+describe('dateStrUTC', () => {
+  test('should return today as a YYYY-MM-DD string', () => {
+    // Happy path + format contract used by the streak.
+    assert.match(dateStrUTC(0), /^\d{4}-\d{2}-\d{2}$/);
+    assert.equal(dateStrUTC(0), new Date().toISOString().slice(0, 10));
+  });
+
+  test('yesterday should be exactly one day before today', () => {
+    // Boundary: the streak logic depends on this being calendar-correct.
+    const today = new Date(dateStrUTC(0) + 'T00:00:00Z');
+    const yesterday = new Date(dateStrUTC(-1) + 'T00:00:00Z');
+    assert.equal((today - yesterday) / 86400000, 1);
+  });
+});
+
+// ─── nextStreak (daily learning streak) ─────────────────────────────────────────
+
+describe('nextStreak', () => {
+  const today = '2026-07-16';
+  const yesterday = '2026-07-15';
+
+  test('should start a streak at 1 for a brand-new user', () => {
+    // Edge case: no prior streak or last-active date.
+    assert.equal(nextStreak(0, null, today, yesterday), 1);
+    assert.equal(nextStreak(undefined, undefined, today, yesterday), 1);
+  });
+
+  test('should increment when the last activity was yesterday', () => {
+    // Core: consecutive days extend the streak.
+    assert.equal(nextStreak(3, yesterday, today, yesterday), 4);
+  });
+
+  test('should stay unchanged when already active today', () => {
+    // Core: multiple sessions in one day do not inflate the streak.
+    assert.equal(nextStreak(4, today, today, yesterday), 4);
+  });
+
+  test('should reset to 1 after a gap of more than one day', () => {
+    // Core: a missed day breaks the streak.
+    assert.equal(nextStreak(9, '2026-07-10', today, yesterday), 1);
+  });
+
+  test('should treat a same-day user with 0 streak as 1', () => {
+    // Boundary: guards against showing a 0-day "streak".
+    assert.equal(nextStreak(0, today, today, yesterday), 1);
+  });
+});
+
+// ─── Pathway data integrity ─────────────────────────────────────────────────────
+
+describe('pathwayStages', () => {
+  test('should cover every topic exactly once across all stages', () => {
+    // Core: a topic missing from (or duplicated in) the pathway is a content bug.
+    const ids = pathwayStages.flatMap(s => s.topicIds).sort();
+    const topicIds = topics.map(t => t.id).sort();
+    assert.deepEqual(ids, topicIds);
+    assert.equal(new Set(ids).size, ids.length, 'no duplicate topic ids');
+  });
+
+  test('every stage should have a valid track, badge, hook, and title', () => {
+    // Structure: the /start renderer relies on all these fields.
+    for (const s of pathwayStages) {
+      assert.ok(['Everyone', 'Aspiring Pro'].includes(s.track), `track: ${s.track}`);
+      assert.ok(s.badge?.name && s.badge?.icon, 'badge name + icon');
+      assert.ok(s.hook && s.title, 'hook + title');
+      assert.ok(Array.isArray(s.topicIds) && s.topicIds.length > 0, 'non-empty topicIds');
+    }
+  });
+
+  test('pathwayStageTopics should resolve ids to topic objects in order', () => {
+    // Core: the renderer maps stage ids to real topics.
+    const stage = { topicIds: ['02', '04'] };
+    assert.deepEqual(pathwayStageTopics(stage).map(t => t.id), ['02', '04']);
+  });
+
+  test('pathwayStageTopics should drop ids that do not resolve', () => {
+    // Edge case: a bad id must not produce an undefined entry.
+    assert.deepEqual(pathwayStageTopics({ topicIds: ['01', 'zz'] }).map(t => t.id), ['01']);
+  });
+});
+
+// ─── topicFraming (hook + takeaway) ─────────────────────────────────────────────
+
+describe('topicFraming', () => {
+  test('every topic should have a non-empty hook and takeaway', () => {
+    // Content: each topic page renders these; a missing one leaves a gap.
+    for (const t of topics) {
+      assert.ok(topicFraming[t.id]?.hook?.length > 0, `hook for ${t.id}`);
+      assert.ok(topicFraming[t.id]?.takeaway?.length > 0, `takeaway for ${t.id}`);
+    }
+  });
+});
+
+// ─── topicCard / pathwayHtml rendering ──────────────────────────────────────────
+
+describe('topicCard', () => {
+  test('should render a linked module card with a data-topic hook', () => {
+    // Happy path: card links to the topic and is tagged for client progress.
+    const html = topicCard({ id: '01', title: 'X', icon: '🛡️', shortDesc: 'Y', difficulty: 'Beginner' });
+    assert.match(html, /href="\/topic\/01"/);
+    assert.match(html, /data-topic="01"/);
+    assert.match(html, /class="card card-link"/);
+  });
+
+  test('should HTML-escape title and description', () => {
+    // Security: an ampersand/quote in content must not break the markup.
+    const html = topicCard({ id: '03', title: 'Passwords & Auth', icon: '🔑', shortDesc: 'a "b"', difficulty: 'Beginner' });
+    assert.match(html, /Passwords &amp; Auth/);
+    assert.match(html, /a &quot;b&quot;/);
+    assert.doesNotMatch(html, /Passwords & Auth/); // raw & should not survive
+  });
+});
+
+describe('pathwayHtml', () => {
+  const html = pathwayHtml();
+
+  test('should render all six stages and every topic module', () => {
+    // Core: the server-rendered pathway must contain the full content.
+    assert.equal((html.match(/class="pw-stage"/g) || []).length, pathwayStages.length);
+    assert.equal((html.match(/class="card card-link"/g) || []).length, topics.length);
+  });
+
+  test('should include both track labels', () => {
+    // Structure: Everyone and Aspiring-Pro stages both present.
+    assert.match(html, /pw-track--everyone/);
+    assert.match(html, /pw-track--aspiring-pro/);
+  });
+});
+
+// ─── topicMetaTags (per-topic SEO head) ─────────────────────────────────────────
+
+describe('topicMetaTags', () => {
+  const tags = topicMetaTags({ id: '03', title: 'Passwords & Authentication', shortDesc: 'Understand MFA.' });
+
+  test('should include an escaped title, description, canonical, and breadcrumb', () => {
+    // Core SEO fields injected into the topic page head.
+    assert.match(tags, /<title>Passwords &amp; Authentication — UNG Cyber Unit<\/title>/);
+    assert.match(tags, /<meta name="description"/);
+    assert.match(tags, /rel="canonical" href="https:\/\/ungcyberunit\.org\/topic\/03"/);
+    assert.match(tags, /BreadcrumbList/);
+  });
+
+  test('breadcrumb JSON-LD should be valid JSON and escape "<"', () => {
+    // Security: the JSON-LD block must parse and can't break out of </script>.
+    const m = tags.match(/<script type="application\/ld\+json">(.*?)<\/script>/s);
+    assert.ok(m, 'has a JSON-LD script');
+    const data = JSON.parse(m[1].replace(/\\u003c/g, '<'));
+    assert.equal(data['@type'], 'BreadcrumbList');
+    assert.equal(data.itemListElement.at(-1).name, 'Passwords & Authentication');
+    assert.doesNotMatch(tags, /<\/script><\/script>/);
+  });
+});
+
+// ─── Endpoints: sitemap, robots, topic framing ──────────────────────────────────
+
+describe('GET /sitemap.xml', () => {
+  test('should list the homepage, /start, and every topic as absolute URLs', async () => {
+    // SEO: the sitemap must stay in sync with the topics and include the pathway.
+    const res = await worker.fetch(new Request('https://example.com/sitemap.xml'), {});
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('Content-Type'), /application\/xml/);
+    const body = await res.text();
+    assert.match(body, /<loc>https:\/\/ungcyberunit\.org\/<\/loc>/);
+    assert.match(body, /<loc>https:\/\/ungcyberunit\.org\/start<\/loc>/);
+    for (const t of topics) {
+      assert.ok(body.includes(`/topic/${t.id}</loc>`), `sitemap includes topic ${t.id}`);
+    }
+  });
+});
+
+describe('GET /robots.txt', () => {
+  test('should be plain text and point to the sitemap', async () => {
+    // Crawlers: robots must advertise the sitemap and not leak private routes.
+    const res = await worker.fetch(new Request('https://example.com/robots.txt'), {});
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('Content-Type'), /text\/plain/);
+    const body = await res.text();
+    assert.match(body, /Sitemap: https:\/\/ungcyberunit\.org\/sitemap\.xml/);
+    assert.doesNotMatch(body, /\/admin|\/instructor|\/profile/); // don't advertise private pages
+  });
+});
+
+describe('GET /api/topic/:id', () => {
+  test('should merge the topic framing (hook + takeaway) into the response', async () => {
+    // Integration: the topic page depends on the API returning its framing.
+    const res = await worker.fetch(new Request('https://example.com/api/topic/01'), {});
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.id, '01');
+    assert.equal(data.hook, topicFraming['01'].hook);
+    assert.equal(data.takeaway, topicFraming['01'].takeaway);
+  });
+
+  test('should 404 for an unknown topic id', async () => {
+    // Error handling.
+    const res = await worker.fetch(new Request('https://example.com/api/topic/zz'), {});
+    assert.equal(res.status, 404);
   });
 });

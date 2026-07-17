@@ -1207,6 +1207,15 @@ function dateStrUTC(days = 0) {
   return d.toISOString().slice(0, 10);
 }
 
+// New daily-streak value given the stored streak, the user's last-active date,
+// and today's/yesterday's dates. Same day = unchanged; consecutive day = +1;
+// any other gap (or never active) = reset to 1.
+function nextStreak(prevStreak, lastActive, today, yesterday) {
+  if (lastActive === today) return prevStreak || 1;
+  if (lastActive === yesterday) return (prevStreak || 0) + 1;
+  return 1;
+}
+
 // Confirm a base64 image payload's actual bytes match the declared type, so we
 // never store arbitrary content (HTML/SVG/etc.) smuggled under an image label.
 // Returns true only when the leading magic bytes match `type` (png|jpeg|webp).
@@ -1494,6 +1503,16 @@ export {
   parseCSVLine,
   parseCSV,
   validateJSONQuestions,
+  escapeHtml,
+  dateStrUTC,
+  nextStreak,
+  topics,
+  pathwayStages,
+  pathwayStageTopics,
+  topicFraming,
+  topicCard,
+  pathwayHtml,
+  topicMetaTags,
 };
 
 // ─── Worker Entry Point ───────────────────────────────────────────────────────
@@ -1651,10 +1670,7 @@ export default {
         // Update the user's daily learning streak.
         const today = dateStrUTC(0);
         const u = await env.DB.prepare('SELECT streak, last_active FROM users WHERE id = ?').bind(session.sub).first();
-        let streak;
-        if (u?.last_active === today) streak = u.streak ?? 1;              // already counted today
-        else if (u?.last_active === dateStrUTC(-1)) streak = (u.streak ?? 0) + 1; // consecutive day
-        else streak = 1;                                                  // first activity or streak broken
+        const streak = nextStreak(u?.streak, u?.last_active, today, dateStrUTC(-1));
         await env.DB.prepare('UPDATE users SET streak = ?, last_active = ? WHERE id = ?')
           .bind(streak, today, session.sub).run();
 
