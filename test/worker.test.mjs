@@ -49,16 +49,16 @@ const SECRET = 'test-secret-value';
 // test can assert whether a write actually happened (or, importantly, did not).
 function mockDB() {
   const calls = [];
+  // Statements can be executed with or without .bind() (D1 allows both).
+  const exec = (sql, bindings) => ({
+    run:   async () => { calls.push({ sql, bindings, op: 'run' });   return { meta: { last_row_id: 1 } }; },
+    first: async () => { calls.push({ sql, bindings, op: 'first' }); return null; },
+    all:   async () => { calls.push({ sql, bindings, op: 'all' });   return { results: [] }; },
+  });
   return {
     calls,
     prepare(sql) {
-      return {
-        bind: (...bindings) => ({
-          run:   async () => { calls.push({ sql, bindings, op: 'run' });   return { meta: { last_row_id: 1 } }; },
-          first: async () => { calls.push({ sql, bindings, op: 'first' }); return null; },
-          all:   async () => { calls.push({ sql, bindings, op: 'all' });   return { results: [] }; },
-        }),
-      };
+      return { bind: (...bindings) => exec(sql, bindings), ...exec(sql, null) };
     },
   };
 }
@@ -703,5 +703,43 @@ describe('pathwayBadges', () => {
       assert.ok(b.name && b.icon && b.stageTitle);
       assert.match(b.href, /^\/start#stage-\d+$/);
     }
+  });
+});
+
+// ─── GET /api/leaderboard ───────────────────────────────────────────────────────
+
+describe('GET /api/leaderboard', () => {
+  test('should require a session', async () => {
+    // Access control: the leaderboard isn't exposed to anonymous requests.
+    const res = await worker.fetch(
+      new Request('https://example.com/api/leaderboard'),
+      { JWT_SECRET: SECRET, DB: mockDB() },
+    );
+    assert.equal(res.status, 401);
+  });
+
+  test('should return a top[] ranking and the viewer\'s me{} summary', async () => {
+    // Shape the profile leaderboard depends on (empty via the mock DB).
+    const cookie = await sessionCookieFor({ sub: 1, username: 'alice', role: 'member' });
+    const res = await worker.fetch(
+      new Request('https://example.com/api/leaderboard', { headers: { Cookie: cookie } }),
+      { JWT_SECRET: SECRET, DB: mockDB() },
+    );
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.ok(Array.isArray(data.top));
+    assert.equal(data.me.username, 'alice');
+    assert.equal(data.me.isGuest, false);
+  });
+
+  test('should mark a guest viewer as isGuest', async () => {
+    // Guests can view but are flagged so the UI shows the "not ranked" note.
+    const cookie = await sessionCookieFor({ sub: 9, username: 'guest-abc', role: 'guest' });
+    const res = await worker.fetch(
+      new Request('https://example.com/api/leaderboard', { headers: { Cookie: cookie } }),
+      { JWT_SECRET: SECRET, DB: mockDB() },
+    );
+    const data = await res.json();
+    assert.equal(data.me.isGuest, true);
   });
 });

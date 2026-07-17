@@ -2303,7 +2303,63 @@ async function initProfilePage() {
   await Promise.all([
     loadProfileAccount(),
     loadProfileProgress(),
+    loadLeaderboard(),
   ]);
+}
+
+async function loadLeaderboard() {
+  const wrap = document.getElementById('leaderboardWrap');
+  if (!wrap) return;
+  try {
+    const res = await fetch('/api/leaderboard');
+    if (!res.ok) throw new Error();
+    const { top, me } = await res.json();
+    renderLeaderboard(top ?? [], me ?? {});
+  } catch {
+    wrap.innerHTML = `<p style="color:var(--danger);font-family:'Share Tech Mono',monospace;">Failed to load leaderboard.</p>`;
+  }
+}
+
+function renderLeaderboard(top, me) {
+  const wrap = document.getElementById('leaderboardWrap');
+  if (!wrap) return;
+
+  if (!top.length) {
+    wrap.innerHTML = `
+      <div style="text-align:center;padding:2rem 1rem;color:var(--text-muted);font-family:'Share Tech Mono',monospace;background:var(--surface);border:1px solid var(--border);border-radius:6px;">
+        <p>No ranked scores yet. Complete a topic quiz to get on the board!</p>
+      </div>`;
+    return;
+  }
+
+  const medal = r => (r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : `#${r}`);
+  const rows = top.map(row => {
+    const isMe = !me.isGuest && row.username === me.username;
+    return `
+      <tr class="${isMe ? 'lb-me' : ''}">
+        <td class="lb-rank">${medal(row.rank)}</td>
+        <td class="lb-user">${escHtml(row.username)}${isMe ? ' <span class="lb-you">you</span>' : ''}</td>
+        <td class="lb-pts">${row.points}</td>
+        <td class="lb-sub">${row.topics}</td>
+        <td class="lb-sub">${row.perfect}</td>
+      </tr>`;
+  }).join('');
+
+  const meInTop = !me.isGuest && top.some(r => r.username === me.username);
+  const footer = me.isGuest
+    ? `<p class="lb-footnote">Guest scores aren't ranked — create an account to compete.</p>`
+    : (meInTop ? '' : `<p class="lb-footnote">You: <strong>${me.points}</strong> point${me.points === 1 ? '' : 's'} across ${me.topics} topic${me.topics === 1 ? '' : 's'} — keep going to climb the board!</p>`);
+
+  wrap.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table class="lb-table">
+        <thead>
+          <tr><th>Rank</th><th>User</th><th>Points</th><th>Topics</th><th>★ Perfect</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    ${footer}`;
 }
 
 async function loadProfileAccount() {

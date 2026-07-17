@@ -2971,3 +2971,37 @@ footer {
 .pf-badge:hover .pf-badge-tip, .pf-badge:focus-visible .pf-badge-tip { opacity: 1; visibility: visible; }
 
 @media (max-width: 480px) { .pf-badge { width: calc(33.333% - 0.6rem); } }
+
+/* ═══ Profile: Top Performers leaderboard ═════════════════════ */
+.lb-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.lb-table th {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+}
+.lb-table th:nth-child(2) { text-align: left; }
+.lb-table td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); color: var(--text-soft); }
+.lb-table tbody tr:hover { background: var(--surface); }
+.lb-rank { font-family: 'Share Tech Mono', monospace; text-align: center; width: 3.5rem; }
+.lb-user { color: var(--text); font-family: 'Share Tech Mono', monospace; }
+.lb-pts { font-family: 'Share Tech Mono', monospace; color: var(--accent); font-weight: bold; text-align: center; }
+.lb-sub { color: var(--text-muted); text-align: center; }
+.lb-me { background: rgba(0, 255, 136, 0.07); }
+.lb-me td { color: var(--text); }
+.lb-you {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid rgba(0, 255, 136, 0.4);
+  border-radius: 4px;
+  padding: 0.05rem 0.35rem;
+  margin-left: 0.4rem;
+}
+.lb-footnote { margin-top: 1rem; color: var(--text-muted); font-family: 'Share Tech Mono', monospace; font-size: 0.82rem; }
+.lb-footnote strong { color: var(--accent); }
