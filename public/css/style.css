@@ -2913,3 +2913,61 @@ footer {
   margin-bottom: 0.5rem;
 }
 .topic-takeaway p { margin: 0; color: var(--text-soft); line-height: 1.7; }
+
+/* ═══ Profile: pathway badge shelf ════════════════════════════ */
+.pf-badges { display: flex; flex-wrap: wrap; gap: 0.9rem; }
+.pf-badge {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  width: 112px;
+  padding: 1rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  text-decoration: none;
+  text-align: center;
+  transition: transform 0.15s, border-color 0.2s, box-shadow 0.2s;
+}
+.pf-badge:hover, .pf-badge:focus-visible {
+  transform: translateY(-3px);
+  border-color: var(--accent);
+  box-shadow: 0 6px 20px rgba(0, 255, 136, 0.1);
+}
+.pf-badge-icon { font-size: 1.9rem; line-height: 1; }
+.pf-badge-name { font-family: 'Share Tech Mono', monospace; font-size: 0.75rem; color: var(--text); }
+
+.pf-badge.is-earned { border-color: rgba(0, 255, 136, 0.4); background: rgba(0, 255, 136, 0.06); }
+.pf-badge.is-earned .pf-badge-name { color: var(--accent); }
+.pf-badge.is-locked { opacity: 0.6; }
+.pf-badge.is-locked .pf-badge-icon { filter: grayscale(1); }
+.pf-badge.is-locked .pf-badge-name { color: var(--text-muted); }
+
+/* Hover/focus tooltip */
+.pf-badge-tip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 220px;
+  padding: 0.5rem 0.7rem;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s;
+  z-index: 5;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+.pf-badge:hover .pf-badge-tip, .pf-badge:focus-visible .pf-badge-tip { opacity: 1; visibility: visible; }
+
+@media (max-width: 480px) { .pf-badge { width: calc(33.333% - 0.6rem); } }

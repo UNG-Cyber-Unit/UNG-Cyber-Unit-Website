@@ -24,6 +24,7 @@ import worker, {
   topics,
   pathwayStages,
   pathwayStageTopics,
+  pathwayBadges,
   topicFraming,
   topicCard,
   pathwayHtml,
@@ -669,5 +670,38 @@ describe('GET /api/topic/:id', () => {
     // Error handling.
     const res = await worker.fetch(new Request('https://example.com/api/topic/zz'), {});
     assert.equal(res.status, 404);
+  });
+});
+
+// ─── pathwayBadges (profile badge shelf) ────────────────────────────────────────
+
+describe('pathwayBadges', () => {
+  test('should return one badge per stage, all locked with no progress', () => {
+    // Baseline: a brand-new user has earned nothing but sees the full shelf.
+    const badges = pathwayBadges(new Set());
+    assert.equal(badges.length, pathwayStages.length);
+    assert.ok(badges.every(b => b.earned === false));
+    assert.equal(badges[0].href, '/start#stage-1');
+  });
+
+  test('should mark a stage earned only when ALL its topics are complete', () => {
+    // Stage 1 is a single topic (01); completing it earns exactly one badge.
+    const badges = pathwayBadges(new Set(['01']));
+    assert.equal(badges.find(b => b.num === 1).earned, true);
+    assert.equal(badges.filter(b => b.earned).length, 1);
+  });
+
+  test('should NOT earn a multi-topic stage that is only partly done', () => {
+    // Stage 2 needs topics 02 and 04 — one of them is not enough.
+    const badges = pathwayBadges(new Set(['02']));
+    assert.equal(badges.find(b => b.num === 2).earned, false);
+  });
+
+  test('every badge should carry name, icon, track, and a stage link', () => {
+    // Shape the profile UI depends on.
+    for (const b of pathwayBadges(new Set())) {
+      assert.ok(b.name && b.icon && b.stageTitle);
+      assert.match(b.href, /^\/start#stage-\d+$/);
+    }
   });
 });

@@ -2349,10 +2349,34 @@ async function loadProfileAccount() {
 
     wireAvatarControls();
     renderProfileRoomHistory(profile.roomAttempts ?? []);
+    renderProfileBadges(profile.badges ?? []);
   } catch {
     accountWrap.innerHTML = `<p style="color:var(--danger);font-family:'Share Tech Mono',monospace;">Failed to load account info.</p>`;
     if (historyWrap) historyWrap.innerHTML = `<p style="color:var(--danger);font-family:'Share Tech Mono',monospace;">Failed to load quiz room history.</p>`;
   }
+}
+
+function renderProfileBadges(badges) {
+  const wrap = document.getElementById('badgesWrap');
+  if (!wrap) return;
+  const earnedCount = badges.filter(b => b.earned).length;
+  wrap.innerHTML = `
+    <p style="color:var(--text-muted);font-family:'Share Tech Mono',monospace;font-size:0.85rem;margin:0 0 1rem;">
+      ${earnedCount} of ${badges.length} badges earned — click one to jump to its stage
+    </p>
+    <div class="pf-badges">
+      ${badges.map(b => {
+        const tip = b.earned
+          ? `Earned — you completed Stage ${b.num}: ${escHtml(b.stageTitle)}`
+          : `Locked — complete Stage ${b.num}: ${escHtml(b.stageTitle)} to earn this`;
+        return `
+        <a href="${escHtml(b.href)}" class="pf-badge ${b.earned ? 'is-earned' : 'is-locked'}" aria-label="${escHtml(b.name)}. ${tip}">
+          <span class="pf-badge-icon" aria-hidden="true">${b.icon}</span>
+          <span class="pf-badge-name">${escHtml(b.name)}</span>
+          <span class="pf-badge-tip" role="tooltip">${tip}</span>
+        </a>`;
+      }).join('')}
+    </div>`;
 }
 
 function wireAvatarControls() {

@@ -940,6 +940,20 @@ function pathwayStageTopics(stage) {
   return stage.topicIds.map(id => topics.find(t => t.id === id)).filter(Boolean);
 }
 
+// Given a Set of completed topic ids, return each stage's badge with its earned
+// state and a link to that stage on the pathway — for the profile badge shelf.
+function pathwayBadges(doneTopicIds) {
+  return pathwayStages.map(s => ({
+    num: s.num,
+    name: s.badge.name,
+    icon: s.badge.icon,
+    track: s.track,
+    stageTitle: s.title,
+    earned: s.topicIds.every(id => doneTopicIds.has(id)),
+    href: `/start#stage-${s.num}`,
+  }));
+}
+
 // Beginner framing for each topic: a mentor-voice "why this matters" hook shown
 // at the top of the topic page, and a plain-English key takeaway at the bottom.
 // Merged into the /api/topic/:id response so the client renders them.
@@ -1168,7 +1182,7 @@ function pathwayHtml() {
     const track = slug(stage.track);
     const modules = pathwayStageTopics(stage).map(topicCard).join('\n            ');
     const ids = stage.topicIds.join(' ');
-    return `      <li class="pw-stage" data-stage="${stage.num}" data-track="${track}" data-topics="${ids}" data-badge="${escapeHtml(stage.badge.name)}">
+    return `      <li id="stage-${stage.num}" class="pw-stage" data-stage="${stage.num}" data-track="${track}" data-topics="${ids}" data-badge="${escapeHtml(stage.badge.name)}">
         <div class="pw-node" aria-hidden="true"><span class="pw-node-num">${stage.num}</span></div>
         <div class="pw-stage-body">
           <div class="pw-stage-head">
@@ -1509,6 +1523,7 @@ export {
   topics,
   pathwayStages,
   pathwayStageTopics,
+  pathwayBadges,
   topicFraming,
   topicCard,
   pathwayHtml,
@@ -1700,6 +1715,12 @@ export default {
         ORDER BY a.completed_at DESC
       `).bind(session.sub).all();
 
+      // Pathway badges: a stage's badge is earned once all its topics are done.
+      const { results: prog } = await env.DB.prepare(
+        'SELECT topic_id FROM quiz_results WHERE user_id = ?'
+      ).bind(session.sub).all();
+      const doneTopics = new Set((prog ?? []).map(r => String(r.topic_id)));
+
       return jsonResponse({
         id: user.id,
         username: user.username,
@@ -1707,6 +1728,7 @@ export default {
         avatar: user.avatar ?? null,
         created_at: user.created_at,
         roomAttempts: roomAttempts ?? [],
+        badges: pathwayBadges(doneTopics),
       });
     }
 
