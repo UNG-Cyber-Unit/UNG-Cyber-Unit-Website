@@ -1259,10 +1259,11 @@ function updateAuthNav() {
   const navItem = document.getElementById('authNavItem');
   if (!navItem) return;
 
-  // Single ☰ menu: Join Room and Profile for everyone, role-gated panels, and a
-  // guest login for signed-out visitors. Server routes still enforce roles;
-  // this gating only controls visibility.
+  // Single ☰ menu: Beginner Pathway, Join Room, and Profile for everyone,
+  // role-gated panels, and a guest login for signed-out visitors. Server routes
+  // still enforce roles; this gating only controls visibility.
   const menuItems = [
+    `<a href="/start" class="nav-dropdown-item">Beginner Pathway</a>`,
     `<a href="/quiz" class="nav-dropdown-item">Join Room</a>`,
     `<a href="/profile" class="nav-dropdown-item">Profile</a>`,
     isInstructor() ? `<a href="/instructor" class="nav-dropdown-item">Instructor Panel</a>` : '',
