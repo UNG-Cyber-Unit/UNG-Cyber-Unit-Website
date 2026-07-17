@@ -3013,6 +3013,11 @@ footer {
 .lb-footnote strong { color: var(--accent); }
 
 /* ═══ Profile: top-3 rank tile (gold / silver / bronze) ═══════ */
+/* Clickable stat tile (Rank → leaderboard) */
+.results-stat--link { text-decoration: none; color: inherit; cursor: pointer; transition: transform 0.15s, box-shadow 0.2s, border-color 0.2s; }
+.results-stat--link:hover, .results-stat--link:focus-visible { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0, 255, 136, 0.12); }
+.results-stat--link:not(.pf-rank):hover { border-color: var(--accent); }
+
 .pf-rank--gold   { border-color: #ffd700; box-shadow: 0 0 16px rgba(255, 215, 0, 0.15); }
 .pf-rank--gold   .results-stat-val { color: #ffd700; }
 .pf-rank--silver { border-color: #cfd4da; box-shadow: 0 0 16px rgba(207, 212, 218, 0.12); }

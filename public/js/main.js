@@ -2304,7 +2304,6 @@ async function initProfilePage() {
   await Promise.all([
     loadProfileAccount(),
     loadProfileProgress(),
-    loadLeaderboard(),
   ]);
 }
 
@@ -2416,10 +2415,10 @@ async function loadProfileAccount() {
             <span class="results-stat-val" style="font-size:1.1rem;">${escHtml(joined)}</span>
             <span class="results-stat-label">Member Since</span>
           </div>
-          <div class="results-stat ${rankTier ? 'pf-rank pf-rank--' + rankTier : ''}">
+          <a href="/leaderboard" class="results-stat results-stat--link ${rankTier ? 'pf-rank pf-rank--' + rankTier : ''}" aria-label="Your rank — open the leaderboard">
             <span class="results-stat-val">${rankDisplay}</span>
-            <span class="results-stat-label">Rank</span>
-          </div>
+            <span class="results-stat-label">Rank ↗</span>
+          </a>
         </div>
       </div>`;
 
