@@ -954,6 +954,30 @@ function pathwayBadges(doneTopicIds) {
   }));
 }
 
+// A user's rank on a leaderboard, using the same ordering as /api/leaderboard
+// (points, then count, then username). `table` is a fixed internal name, never
+// user input. Returns null for guests or users with no points.
+async function leaderboardRank(env, table, userId, username) {
+  const agg = await env.DB.prepare(
+    `SELECT SUM(score) AS points, COUNT(*) AS count FROM ${table} WHERE user_id = ?`
+  ).bind(userId).first();
+  const points = agg?.points ?? 0;
+  const count = agg?.count ?? 0;
+  if (points <= 0) return null;
+  const row = await env.DB.prepare(`
+    SELECT COUNT(*) + 1 AS rank FROM (
+      SELECT u.username, SUM(t.score) AS pts, COUNT(*) AS cnt
+      FROM users u JOIN ${table} t ON t.user_id = u.id
+      WHERE u.role != 'guest'
+      GROUP BY u.id
+    ) x
+    WHERE x.pts > ?
+       OR (x.pts = ? AND x.cnt > ?)
+       OR (x.pts = ? AND x.cnt = ? AND x.username < ?)
+  `).bind(points, points, count, points, count, username).first();
+  return row?.rank ?? null;
+}
+
 // Beginner framing for each topic: a mentor-voice "why this matters" hook shown
 // at the top of the topic page, and a plain-English key takeaway at the bottom.
 // Merged into the /api/topic/:id response so the client renders them.
@@ -1717,30 +1741,14 @@ export default {
 
       // Pathway badges: a stage's badge is earned once all its topics are done.
       const { results: prog } = await env.DB.prepare(
-        'SELECT topic_id, score FROM quiz_results WHERE user_id = ?'
+        'SELECT topic_id FROM quiz_results WHERE user_id = ?'
       ).bind(session.sub).all();
-      const rows = prog ?? [];
-      const doneTopics = new Set(rows.map(r => String(r.topic_id)));
-      const myPoints = rows.reduce((sum, r) => sum + (r.score ?? 0), 0);
-      const myTopics = rows.length;
+      const doneTopics = new Set((prog ?? []).map(r => String(r.topic_id)));
 
-      // Leaderboard rank (same ordering as /api/leaderboard: points, then topics,
-      // then username). Guests and users with no points are unranked.
-      let rank = null;
-      if ((user.role ?? 'member') !== 'guest' && myPoints > 0) {
-        const rankRow = await env.DB.prepare(`
-          SELECT COUNT(*) + 1 AS rank FROM (
-            SELECT u.username, SUM(q.score) AS pts, COUNT(q.topic_id) AS topics
-            FROM users u JOIN quiz_results q ON q.user_id = u.id
-            WHERE u.role != 'guest'
-            GROUP BY u.id
-          ) t
-          WHERE t.pts > ?
-             OR (t.pts = ? AND t.topics > ?)
-             OR (t.pts = ? AND t.topics = ? AND t.username < ?)
-        `).bind(myPoints, myPoints, myTopics, myPoints, myTopics, user.username).first();
-        rank = rankRow?.rank ?? null;
-      }
+      // Leaderboard ranks (module completion + quiz rooms). Guests are unranked.
+      const isGuest = (user.role ?? 'member') === 'guest';
+      const rank = isGuest ? null : await leaderboardRank(env, 'quiz_results', session.sub, user.username);
+      const roomRank = isGuest ? null : await leaderboardRank(env, 'quiz_room_attempts', session.sub, user.username);
 
       return jsonResponse({
         id: user.id,
@@ -1751,6 +1759,7 @@ export default {
         roomAttempts: roomAttempts ?? [],
         badges: pathwayBadges(doneTopics),
         rank,
+        roomRank,
       });
     }
 

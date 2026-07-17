@@ -2329,7 +2329,14 @@ async function initLeaderboardPage() {
     loadLeaderboard(btn.dataset.mode);
   }));
 
-  await loadLeaderboard('modules');
+  // Honour ?mode= from the URL (e.g. the profile "Room Rank" link).
+  const initialMode = new URLSearchParams(window.location.search).get('mode') === 'rooms' ? 'rooms' : 'modules';
+  btns.forEach(b => {
+    const active = b.dataset.mode === initialMode;
+    b.classList.toggle('is-active', active);
+    b.setAttribute('aria-selected', active);
+  });
+  await loadLeaderboard(initialMode);
 }
 
 async function loadLeaderboard(mode = 'modules') {
@@ -2410,9 +2417,15 @@ async function loadProfileAccount() {
       ? new Date(profile.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
       : '—';
     const displayName = profile.role === 'guest' ? 'Guest' : profile.username;
-    const rank = profile.rank;
-    const rankTier = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
-    const rankDisplay = rank ? `${rank === 1 ? '👑 ' : ''}#${rank}` : 'Unranked';
+    const rankTile = (rank, label, href) => {
+      const tier = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+      const disp = rank ? `${rank === 1 ? '👑 ' : ''}#${rank}` : 'Unranked';
+      return `
+          <a href="${href}" class="results-stat results-stat--link ${tier ? 'pf-rank pf-rank--' + tier : ''}" aria-label="${label} — open the leaderboard">
+            <span class="results-stat-val">${disp}</span>
+            <span class="results-stat-label">${label} ↗</span>
+          </a>`;
+    };
 
     accountWrap.innerHTML = `
       <div class="profile-account">
@@ -2438,10 +2451,8 @@ async function loadProfileAccount() {
             <span class="results-stat-val" style="font-size:1.1rem;">${escHtml(joined)}</span>
             <span class="results-stat-label">Member Since</span>
           </div>
-          <a href="/leaderboard" class="results-stat results-stat--link ${rankTier ? 'pf-rank pf-rank--' + rankTier : ''}" aria-label="Your rank — open the leaderboard">
-            <span class="results-stat-val">${rankDisplay}</span>
-            <span class="results-stat-label">Rank ↗</span>
-          </a>
+          ${rankTile(profile.rank, 'Module Rank', '/leaderboard')}
+          ${rankTile(profile.roomRank, 'Room Rank', '/leaderboard?mode=rooms')}
         </div>
       </div>`;
 
