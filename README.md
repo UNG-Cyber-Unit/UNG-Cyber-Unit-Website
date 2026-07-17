@@ -121,7 +121,7 @@ cybersec-basics/
 | `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/me` | Account auth |
 | `/api/progress` | Logged-in user's per-topic quiz progress |
 | `/api/profile` | Logged-in user's account details + Quiz Room attempt history + earned pathway badges |
-| `/api/leaderboard` | Top performers by total topic-quiz points (guests excluded) |
+| `/api/leaderboard?mode=modules\|rooms` | Top performers — by topic-quiz points (`modules`, default) or quiz-room points (`rooms`); guests excluded |
 | `/api/admin/users` | Admin — list/manage users |
 | `/api/rooms` (POST/GET) | Instructor — create a room / list your rooms |
 | `/api/rooms/public` | Any logged-in member — browse open public rooms |

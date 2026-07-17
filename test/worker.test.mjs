@@ -756,3 +756,32 @@ describe('GET /api/profile', () => {
     assert.equal(res.status, 401);
   });
 });
+
+// ─── GET /api/leaderboard?mode= (module vs room modes) ──────────────────────────
+
+describe('GET /api/leaderboard modes', () => {
+  const call = async (q = '') => {
+    const cookie = await sessionCookieFor({ sub: 1, username: 'alice', role: 'member' });
+    return worker.fetch(
+      new Request('https://example.com/api/leaderboard' + q, { headers: { Cookie: cookie } }),
+      { JWT_SECRET: SECRET, DB: mockDB() },
+    );
+  };
+
+  test('should default to the modules mode', async () => {
+    const data = await (await call()).json();
+    assert.equal(data.mode, 'modules');
+  });
+
+  test('should honour ?mode=rooms', async () => {
+    const data = await (await call('?mode=rooms')).json();
+    assert.equal(data.mode, 'rooms');
+  });
+
+  test('should fall back to modules for an unknown mode', async () => {
+    // Guards against SQL built from arbitrary user input — only the two known
+    // modes are ever used.
+    const data = await (await call('?mode=bogus')).json();
+    assert.equal(data.mode, 'modules');
+  });
+});

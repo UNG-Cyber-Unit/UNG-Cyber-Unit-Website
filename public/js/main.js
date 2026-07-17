@@ -2316,30 +2316,53 @@ async function initLeaderboardPage() {
     return;
   }
   if (content) content.hidden = false;
-  await loadLeaderboard();
+
+  // Wire the mode toggle (Module Completion / Quiz Rooms).
+  const btns = [...document.querySelectorAll('.lb-mode-btn')];
+  btns.forEach(btn => btn.addEventListener('click', () => {
+    if (btn.classList.contains('is-active')) return;
+    btns.forEach(b => {
+      const active = b === btn;
+      b.classList.toggle('is-active', active);
+      b.setAttribute('aria-selected', active);
+    });
+    loadLeaderboard(btn.dataset.mode);
+  }));
+
+  await loadLeaderboard('modules');
 }
 
-async function loadLeaderboard() {
+async function loadLeaderboard(mode = 'modules') {
   const wrap = document.getElementById('leaderboardWrap');
   if (!wrap) return;
+  wrap.innerHTML = `<p style="color:var(--text-muted);font-family:'Share Tech Mono',monospace;">Loading...</p>`;
   try {
-    const res = await fetch('/api/leaderboard');
+    const res = await fetch(`/api/leaderboard?mode=${encodeURIComponent(mode)}`);
     if (!res.ok) throw new Error();
-    const { top, me } = await res.json();
-    renderLeaderboard(top ?? [], me ?? {});
+    const data = await res.json();
+    renderLeaderboard(data.top ?? [], data.me ?? {}, data.mode ?? mode);
   } catch {
     wrap.innerHTML = `<p style="color:var(--danger);font-family:'Share Tech Mono',monospace;">Failed to load leaderboard.</p>`;
   }
 }
 
-function renderLeaderboard(top, me) {
+function renderLeaderboard(top, me, mode = 'modules') {
   const wrap = document.getElementById('leaderboardWrap');
   if (!wrap) return;
+
+  const rooms = mode === 'rooms';
+  const unit = rooms ? 'room' : 'module';           // singular
+  const countLabel = rooms ? 'Rooms' : 'Modules';
+
+  const sub = document.getElementById('lbSubtitle');
+  if (sub) sub.textContent = rooms
+    ? 'Ranked by total quiz room points'
+    : 'Ranked by total module-completion points';
 
   if (!top.length) {
     wrap.innerHTML = `
       <div style="text-align:center;padding:2rem 1rem;color:var(--text-muted);font-family:'Share Tech Mono',monospace;background:var(--surface);border:1px solid var(--border);border-radius:6px;">
-        <p>No ranked scores yet. Complete a topic quiz to get on the board!</p>
+        <p>No ranked scores yet. ${rooms ? 'Take a quiz room' : 'Complete a topic quiz'} to get on the board!</p>
       </div>`;
     return;
   }
@@ -2352,7 +2375,7 @@ function renderLeaderboard(top, me) {
         <td class="lb-rank">${medal(row.rank)}</td>
         <td class="lb-user">${escHtml(row.username)}${isMe ? ' <span class="lb-you">you</span>' : ''}</td>
         <td class="lb-pts">${row.points}</td>
-        <td class="lb-sub">${row.topics}</td>
+        <td class="lb-sub">${row.count}</td>
         <td class="lb-sub">${row.perfect}</td>
       </tr>`;
   }).join('');
@@ -2360,13 +2383,13 @@ function renderLeaderboard(top, me) {
   const meInTop = !me.isGuest && top.some(r => r.username === me.username);
   const footer = me.isGuest
     ? `<p class="lb-footnote">Guest scores aren't ranked — create an account to compete.</p>`
-    : (meInTop ? '' : `<p class="lb-footnote">You: <strong>${me.points}</strong> point${me.points === 1 ? '' : 's'} across ${me.topics} topic${me.topics === 1 ? '' : 's'} — keep going to climb the board!</p>`);
+    : (meInTop ? '' : `<p class="lb-footnote">You: <strong>${me.points}</strong> point${me.points === 1 ? '' : 's'} across ${me.count} ${unit}${me.count === 1 ? '' : 's'} — keep going to climb the board!</p>`);
 
   wrap.innerHTML = `
     <div style="overflow-x:auto;">
       <table class="lb-table">
         <thead>
-          <tr><th>Rank</th><th>User</th><th>Points</th><th>Topics</th><th>★ Perfect</th></tr>
+          <tr><th>Rank</th><th>User</th><th>Points</th><th>${countLabel}</th><th>★ Perfect</th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>

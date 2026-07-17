@@ -1754,38 +1754,45 @@ export default {
       });
     }
 
-    // GET /api/leaderboard — top performers by total topic-quiz points.
+    // GET /api/leaderboard?mode=modules|rooms — top performers. "modules" ranks
+    // by topic-quiz points, "rooms" by quiz-room points. Guests are excluded.
     if (path === '/api/leaderboard' && request.method === 'GET') {
       if (!env.JWT_SECRET || !env.DB) return jsonResponse({ error: 'Server not configured' }, 503);
       const session = await getSession(request, env.JWT_SECRET);
       if (!session) return jsonResponse({ error: 'Not authenticated' }, 401);
 
-      // Ranking excludes guest accounts. Points = sum of best quiz scores.
+      const mode = url.searchParams.get('mode') === 'rooms' ? 'rooms' : 'modules';
+      const src = mode === 'rooms'
+        ? { table: 'quiz_room_attempts', join: 'a.user_id', score: 'a.score', total: 'a.total', unit: 'a.id' }
+        : { table: 'quiz_results', join: 'q.user_id', score: 'q.score', total: 'q.total', unit: 'q.topic_id' };
+      const t = mode === 'rooms' ? 'a' : 'q';
+
       const { results: top } = await env.DB.prepare(`
         SELECT u.username,
-               SUM(q.score) AS points,
-               COUNT(q.topic_id) AS topics,
-               SUM(CASE WHEN q.score = q.total THEN 1 ELSE 0 END) AS perfect
+               SUM(${src.score}) AS points,
+               COUNT(${src.unit}) AS count,
+               SUM(CASE WHEN ${src.score} = ${src.total} THEN 1 ELSE 0 END) AS perfect
         FROM users u
-        JOIN quiz_results q ON q.user_id = u.id
+        JOIN ${src.table} ${t} ON ${src.join} = u.id
         WHERE u.role != 'guest'
         GROUP BY u.id
-        ORDER BY points DESC, topics DESC, u.username ASC
+        ORDER BY points DESC, count DESC, u.username ASC
         LIMIT 10
       `).all();
 
       const meRow = await env.DB.prepare(
-        'SELECT SUM(score) AS points, COUNT(topic_id) AS topics FROM quiz_results WHERE user_id = ?'
+        `SELECT SUM(score) AS points, COUNT(*) AS count FROM ${src.table} WHERE user_id = ?`
       ).bind(session.sub).first();
 
       return jsonResponse({
+        mode,
         top: (top ?? []).map((r, i) => ({
-          rank: i + 1, username: r.username, points: r.points ?? 0, topics: r.topics ?? 0, perfect: r.perfect ?? 0,
+          rank: i + 1, username: r.username, points: r.points ?? 0, count: r.count ?? 0, perfect: r.perfect ?? 0,
         })),
         me: {
           username: session.username,
           points: meRow?.points ?? 0,
-          topics: meRow?.topics ?? 0,
+          count: meRow?.count ?? 0,
           isGuest: (session.role ?? 'member') === 'guest',
         },
       });

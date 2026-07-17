@@ -33,8 +33,8 @@
         <h1 style="font-family: 'Share Tech Mono', monospace; color: var(--accent); font-size: 1.6rem; margin: 0 0 0.25rem;">
           // Top Performers
         </h1>
-        <p style="color: var(--text-muted); font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; margin: 0;">
-          Ranked by total topic-quiz points
+        <p id="lbSubtitle" style="color: var(--text-muted); font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; margin: 0;">
+          Ranked by total module-completion points
         </p>
       </header>
 
@@ -47,6 +47,10 @@
 
       <!-- Shown when signed in -->
       <div id="leaderboardContent" hidden>
+        <div class="lb-modes" role="tablist" aria-label="Leaderboard mode">
+          <button class="lb-mode-btn is-active" data-mode="modules" role="tab" aria-selected="true">Module Completion</button>
+          <button class="lb-mode-btn" data-mode="rooms" role="tab" aria-selected="false">Quiz Rooms</button>
+        </div>
         <div id="leaderboardWrap">
           <p style="color: var(--text-muted); font-family: 'Share Tech Mono', monospace;">Loading...</p>
         </div>
