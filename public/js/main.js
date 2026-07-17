@@ -2405,7 +2405,7 @@ async function loadProfileAccount() {
         </div>
         <div class="results-summary-grid">
           <div class="results-stat">
-            <span class="results-stat-val">${escHtml(displayName)}</span>
+            <span class="results-stat-val results-stat-val--name">${escHtml(displayName)}</span>
             <span class="results-stat-label">Username</span>
           </div>
           <div class="results-stat">
